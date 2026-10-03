@@ -1,0 +1,7 @@
+[package]
+name = "nxemu"
+version = "0.1.0"
+edition = "2021"
+description = "Base educativa de un emulador de Nintendo Switch: CPU AArch64, memoria, cargador NRO y SVC mínimos"
+
+[dependencies]
