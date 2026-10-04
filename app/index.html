@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e0f13">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Nexus">
+<title>Nexus</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <h1 id="title">Biblioteca</h1>
+  <button id="add" class="btn primary" aria-label="Añadir juegos">+ Añadir</button>
+</header>
+
+<main>
+  <section id="tab-library" class="tab active">
+    <input id="search" type="search" placeholder="Buscar juegos" aria-label="Buscar">
+    <div id="chips" class="chips" role="tablist"></div>
+    <div id="grid" class="grid"></div>
+    <p id="empty" class="empty" hidden>
+      Tu biblioteca está vacía.<br>Pulsa <b>+ Añadir</b> para importar tus propios archivos de juego
+      (.nes .sfc .gb .gbc .gba .z64 .nds .md).
+    </p>
+  </section>
+
+  <section id="tab-switch" class="tab">
+    <div class="card">
+      <h2>Homebrew local <span class="tag">experimental</span></h2>
+      <p>Ejecuta programas <code>.nro</code> sencillos con el núcleo propio <b>nxemu</b> (CPU ARM64 en WebAssembly).
+         <b>No ejecuta juegos comerciales.</b></p>
+      <div class="row">
+        <button id="run-demo" class="btn">▶ Ejecutar demo</button>
+        <button id="run-nro" class="btn">Abrir .nro…</button>
+      </div>
+      <pre id="console" class="console" hidden></pre>
+    </div>
+
+    <div class="card">
+      <h2>Juego remoto <span class="tag ok">juegos completos</span></h2>
+      <p>Para jugar a tus juegos de Switch en el iPhone: emúlalos en un PC o Mac con Eden/Ryubing y transmítelos aquí
+         con Sunshine + Moonlight (web), Steam Link o Parsec.</p>
+      <label for="remote-url">Dirección de tu servidor de streaming</label>
+      <input id="remote-url" type="url" inputmode="url" placeholder="https://192.168.1.20:47990">
+      <div class="row">
+        <button id="remote-open" class="btn primary">Abrir pantalla remota</button>
+        <button id="remote-save" class="btn">Guardar</button>
+      </div>
+      <details>
+        <summary>Cómo configurarlo</summary>
+        <ol>
+          <li>En tu PC/Mac instala <b>Eden</b> o <b>Ryubing</b> y carga las claves y los juegos de <i>tu propia</i> consola.</li>
+          <li>Instala <b>Sunshine</b> y añade el emulador como aplicación.</li>
+          <li>En el iPhone, usa la misma red Wi-Fi (5 GHz) y pega arriba la dirección de tu cliente web.</li>
+          <li>Empareja un mando Bluetooth desde Ajustes de iOS.</li>
+        </ol>
+      </details>
+    </div>
+  </section>
+
+  <section id="tab-settings" class="tab">
+    <div class="card">
+      <h2>Almacenamiento</h2>
+      <p id="usage">Calculando…</p>
+      <button id="clear" class="btn danger">Borrar toda la biblioteca</button>
+    </div>
+    <div class="card">
+      <h2>Acerca de</h2>
+      <p>Nexus es un lanzador de emuladores que se instala en la pantalla de inicio. Tus juegos se guardan solo en este
+         dispositivo. Los núcleos retro son <a href="https://emulatorjs.org" target="_blank" rel="noopener">EmulatorJS</a> (libretro, GPL/LGPL).
+         Nexus no incluye juegos, BIOS, claves ni firmware: usa únicamente copias de tu propiedad.</p>
+      <p><b>Instalar en iPhone:</b> Safari → Compartir → <i>Añadir a pantalla de inicio</i>.</p>
+    </div>
+  </section>
+</main>
+
+<nav class="tabs" role="tablist">
+  <button data-tab="library" class="active">🎮<span>Biblioteca</span></button>
+  <button data-tab="switch">🔴<span>Switch</span></button>
+  <button data-tab="settings">⚙️<span>Ajustes</span></button>
+</nav>
+
+<input id="file" type="file" multiple hidden>
+<input id="file-nro" type="file" accept=".nro" hidden>
+<dialog id="menu"></dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<div id="player" hidden>
+  <iframe id="frame" title="Juego" allow="gamepad; fullscreen; autoplay"></iframe>
+  <button id="exit" aria-label="Salir del juego">✕</button>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Jugando</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  #game { width: 100%; height: 100%; }
+  #err { position: fixed; inset: 0; display: none; place-items: center; color: #fff; font: 16px system-ui; padding: 24px; text-align: center; }
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="err"></div>
+<script type="module">
+import { getGame, putGame } from './db.js';
+import { SYSTEMS, extOf } from './systems.js';
+
+// La app no hace llamadas externas: se bloquea la comprobación de versiones de EmulatorJS.
+const realFetch = window.fetch.bind(window);
+window.fetch = (u, ...a) => (String(u?.url || u).includes('emulatorjs.org') ? Promise.resolve(new Response('', { status: 503 })) : realFetch(u, ...a));
+
+const fail = (msg) => { const e = document.getElementById('err'); e.textContent = msg; e.style.display = 'grid'; };
+const id = new URLSearchParams(location.search).get('id');
+const g = id && await getGame(id);
+if (!g) fail('No se encontró el juego en la biblioteca.');
+else if (!SYSTEMS[g.system]?.ejs) fail('Este sistema no usa EmulatorJS.');
+else {
+  const file = new File([g.blob], 'game.' + extOf(g.filename), { type: 'application/octet-stream' });
+  window.EJS_player = '#game';
+  window.EJS_core = SYSTEMS[g.system].ejs;
+  window.EJS_gameUrl = file;
+  window.EJS_gameName = g.id;           // clave de los estados guardados y partidas
+  window.EJS_gameID = g.id;
+  window.EJS_pathtodata = 'vendor/ejs/';
+  window.EJS_language = navigator.language?.startsWith('es') ? 'es-ES' : 'en-US';
+  window.EJS_startOnLoaded = true;
+  window.EJS_threads = false;
+  window.EJS_disableDatabases = false;
+  window.EJS_backgroundColor = '#000';
+  window.EJS_onGameStart = () => {
+    g.lastPlayed = Date.now();
+    putGame(g);
+    parent.postMessage({ type: 'nexus-started' }, location.origin);
+  };
+  const s = document.createElement('script');
+  s.src = 'vendor/ejs/loader.js';
+  s.onerror = () => fail('Faltan los núcleos de emulación. Ejecuta `npm run vendor` en app/.');
+  document.body.appendChild(s);
+}
+</script>
+</body>
+</html>

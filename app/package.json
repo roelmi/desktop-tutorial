@@ -1,0 +1,24 @@
+{
+  "name": "nexus-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Nexus: biblioteca de emuladores retro + Switch (homebrew local y juego remoto), instalable como PWA en iPhone",
+  "scripts": {
+    "vendor": "node scripts/vendor.mjs",
+    "wasm": "cd ../nxemu && cargo build --release --target wasm32-unknown-unknown --lib && cp target/wasm32-unknown-unknown/release/nxemu.wasm ../app/emu/nxemu.wasm",
+    "serve": "node scripts/serve.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@emulatorjs/core-fceumm": "^4.2.3",
+    "@emulatorjs/core-gambatte": "^4.2.3",
+    "@emulatorjs/core-melonds": "^4.2.3",
+    "@emulatorjs/core-mgba": "^4.2.3",
+    "@emulatorjs/core-mupen64plus_next": "^4.2.3",
+    "@emulatorjs/core-snes9x": "^4.2.3",
+    "@emulatorjs/emulatorjs": "^4.2.3"
+  },
+  "devDependencies": {
+    "playwright": "^1.50.0"
+  }
+}

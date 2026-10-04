@@ -1,5 +1,4 @@
-# Welcome to GitHub Desktop!
+# desktop-tutorial
 
-This is your README. READMEs are where you can communicate what your project is and how to use it.
-
-Write your name on line 6, save it, and then head back to GitHub Desktop.
+- [`app/`](app) — **Nexus**: app web instalable (PWA) estilo Delta con emuladores retro y soporte Switch (homebrew local + juego remoto).
+- [`nxemu/`](nxemu) — núcleo de Switch en Rust (CPU AArch64 + cargador NRO), compilable a WebAssembly.
