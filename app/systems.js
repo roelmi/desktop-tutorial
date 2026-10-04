@@ -7,6 +7,11 @@ export const SYSTEMS = {
   n64:  { name: 'Nintendo 64',       ext: ['n64', 'z64', 'v64'], ejs: 'n64',    color: '#e0a21b' },
   nds:  { name: 'Nintendo DS',       ext: ['nds'],               ejs: 'nds',    color: '#8a8f99' },
   md:   { name: 'Mega Drive',        ext: ['md', 'gen', 'smd'],  ejs: 'segaMD', color: '#1f1f1f' },
+  psx:  { name: 'PlayStation',       ext: ['chd', 'pbp', 'iso'], ejs: 'psx',    color: '#2c4a9a' },
+  sms:  { name: 'Master System',     ext: ['sms'],               ejs: 'segaMS', color: '#c43a3a' },
+  gg:   { name: 'Game Gear',         ext: ['gg'],                ejs: 'segaGG', color: '#3a3a8c' },
+  pce:  { name: 'PC Engine',         ext: ['pce'],               ejs: 'pce',    color: '#d67a1f' },
+  a2600:{ name: 'Atari 2600',        ext: ['a26'],               ejs: 'atari2600', color: '#8a5a2a' },
   switch: { name: 'Switch (homebrew)', ext: ['nro'],             ejs: null,     color: '#e4002b' },
 };
 

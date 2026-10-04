@@ -66,6 +66,17 @@ test('importa una ROM, la lista y la arranca con el núcleo retro', async () => 
   assert.equal(await page.isHidden('#player'), true);
 });
 
+test('los núcleos añadidos (Master System) también arrancan', async () => {
+  await page.setInputFiles('#file', { name: 'Test.sms', mimeType: 'application/octet-stream', buffer: Buffer.alloc(0x8000, 0xc7) });
+  await page.waitForSelector('.game:has-text("Master System")');
+  await page.click('.game:has-text("Master System")');
+  await page.waitForFunction(() => {
+    const d = document.getElementById('frame').contentDocument;
+    return d && d.querySelector('.ejs_menu_bar') && !d.querySelector('.ejs_start_button');
+  }, null, { timeout: 60000 });
+  await page.click('#exit');
+});
+
 test('sin errores de JavaScript en la página principal', () => {
   assert.deepEqual(errors, []);
 });

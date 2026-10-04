@@ -109,7 +109,7 @@ async function importFiles(files) {
   for (const f of files) {
     const ext = extOf(f.name);
     if (SWITCH_REMOTE_EXT.includes(ext)) {
-      toast('Los juegos de Switch (XCI/NSP) no se ejecutan aquí: usa «Juego remoto» en la pestaña Switch.', 6000);
+      toast('Los juegos de Switch (XCI/NSP) no se pueden ejecutar en este móvil. Mira la pestaña Switch.', 6000);
       continue;
     }
     let system = detect(f.name);
@@ -161,22 +161,6 @@ const runNroFile = async (f) => runNroBytes(new Uint8Array(await f.arrayBuffer()
 $('#run-demo').onclick = async () => runNroBytes(new Uint8Array(await (await fetch('emu/demo.nro')).arrayBuffer()), 'demo.nro');
 $('#run-nro').onclick = () => $('#file-nro').click();
 $('#file-nro').onchange = (e) => { if (e.target.files[0]) runNroFile(e.target.files[0]); e.target.value = ''; };
-
-const urlInput = $('#remote-url');
-try { urlInput.value = localStorage.getItem('nexus.remote') || ''; } catch { /* almacenamiento bloqueado */ }
-function remoteUrl() {
-  try {
-    const u = new URL(urlInput.value.trim());
-    if (!['http:', 'https:'].includes(u.protocol)) throw 0;
-    return u.href;
-  } catch { toast('Escribe una dirección válida (https://…)'); return null; }
-}
-$('#remote-save').onclick = () => {
-  const u = remoteUrl();
-  if (!u) return;
-  try { localStorage.setItem('nexus.remote', u); toast('Guardado'); } catch { toast('No se pudo guardar'); }
-};
-$('#remote-open').onclick = () => { const u = remoteUrl(); if (u) window.open(u, '_blank', 'noopener'); };
 
 /* ---------- Ajustes ---------- */
 async function updateUsage() {

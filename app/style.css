@@ -22,7 +22,7 @@ code { background: var(--line); padding: 1px 5px; border-radius: 4px; }
 .btn:active { opacity: .7; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 
-input[type=search], input[type=url] { width: 100%; font: inherit; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--text); }
+input[type=search] { width: 100%; font: inherit; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--text); }
 label { display: block; margin: 10px 0 4px; color: var(--muted); font-size: 14px; }
 .chips { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0; scrollbar-width: none; }
 .chip { flex: none; border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 14px; cursor: pointer; }

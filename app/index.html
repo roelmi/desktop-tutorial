@@ -26,7 +26,7 @@
     <div id="grid" class="grid"></div>
     <p id="empty" class="empty" hidden>
       Tu biblioteca está vacía.<br>Pulsa <b>+ Añadir</b> para importar tus propios archivos de juego
-      (.nes .sfc .gb .gbc .gba .z64 .nds .md).
+      (.nes .sfc .gb .gbc .gba .z64 .nds .md .sms .gg .pce .a26 .chd .pbp .iso).
     </p>
   </section>
 
@@ -43,24 +43,13 @@
     </div>
 
     <div class="card">
-      <h2>Juego remoto <span class="tag ok">juegos completos</span></h2>
-      <p>Para jugar a tus juegos de Switch en el iPhone: emúlalos en un PC o Mac con Eden/Ryubing y transmítelos aquí
-         con Sunshine + Moonlight (web), Steam Link o Parsec.</p>
-      <label for="remote-url">Dirección de tu servidor de streaming</label>
-      <input id="remote-url" type="url" inputmode="url" placeholder="https://192.168.1.20:47990">
-      <div class="row">
-        <button id="remote-open" class="btn primary">Abrir pantalla remota</button>
-        <button id="remote-save" class="btn">Guardar</button>
-      </div>
-      <details>
-        <summary>Cómo configurarlo</summary>
-        <ol>
-          <li>En tu PC/Mac instala <b>Eden</b> o <b>Ryubing</b> y carga las claves y los juegos de <i>tu propia</i> consola.</li>
-          <li>Instala <b>Sunshine</b> y añade el emulador como aplicación.</li>
-          <li>En el iPhone, usa la misma red Wi-Fi (5 GHz) y pega arriba la dirección de tu cliente web.</li>
-          <li>Empareja un mando Bluetooth desde Ajustes de iOS.</li>
-        </ol>
-      </details>
+      <h2>Juegos de Switch en este móvil</h2>
+      <p>Hoy <b>no es posible</b> ejecutar juegos comerciales de Switch dentro de un iPhone: la consola necesita un
+         compilador JIT (iOS lo bloquea), traducir su GPU a Metal y reimplementar cientos de servicios del sistema.
+         Ningún emulador de Switch funciona en iOS.</p>
+      <p>Lo que sí hace Nexus: un núcleo propio (<b>nxemu</b>) que se irá ampliando. Por ahora ejecuta programas
+         homebrew sencillos, como el de arriba.</p>
+      <p>Si tienes un móvil <b>Android</b> con Snapdragon reciente, ahí sí se pueden usar emuladores de Switch nativos (p. ej. Eden).</p>
     </div>
   </section>
 

@@ -15,7 +15,10 @@
     "@emulatorjs/core-melonds": "^4.2.3",
     "@emulatorjs/core-mgba": "^4.2.3",
     "@emulatorjs/core-mupen64plus_next": "^4.2.3",
+    "@emulatorjs/core-mednafen_pce": "^4.2.3",
+    "@emulatorjs/core-pcsx_rearmed": "^4.2.3",
     "@emulatorjs/core-snes9x": "^4.2.3",
+    "@emulatorjs/core-stella2014": "^4.2.3",
     "@emulatorjs/emulatorjs": "^4.2.3"
   },
   "devDependencies": {

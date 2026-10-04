@@ -6,12 +6,11 @@ Bluetooth, todo en el dispositivo. Pensada para iPhone (Safari → Compartir →
 ## Qué incluye
 | Sistema | Cómo se ejecuta |
 |---|---|
-| NES, SNES, Game Boy/Color, GBA, N64, DS, Mega Drive | Núcleos libretro de [EmulatorJS](https://emulatorjs.org) en WebAssembly, autoalojados (sin CDN, funciona sin conexión) |
+| NES, SNES, Game Boy/Color, GBA, N64, DS, Mega Drive, PlayStation, Master System, Game Gear, PC Engine, Atari 2600 | Núcleos libretro de [EmulatorJS](https://emulatorjs.org) en WebAssembly, autoalojados (sin CDN, funciona sin conexión) |
 | **Switch · homebrew `.nro`** | Núcleo propio [`nxemu`](../nxemu) (CPU AArch64 en Rust → WebAssembly). Experimental: solo programas de prueba |
-| **Switch · juegos completos** | Juego remoto: emulas en un PC/Mac (Eden/Ryubing) y transmites al iPhone (Sunshine + Moonlight, Steam Link, Parsec) |
 
-> Ninguna web puede ejecutar juegos comerciales de Switch de forma local en un iPhone: la Switch necesita un JIT de CPU,
-> una GPU Maxwell traducida a Metal y cientos de servicios del SO. Por eso Nexus combina un núcleo propio (base) con juego remoto (completo).
+> Los juegos comerciales de Switch no se pueden ejecutar en un iPhone: la Switch necesita un JIT de CPU (iOS lo bloquea),
+> una GPU Maxwell traducida a Metal y cientos de servicios del SO. `nxemu` es la base para ir ampliando, no un emulador jugable.
 
 ## Desarrollo
     cd app
