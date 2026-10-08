@@ -677,7 +677,7 @@ impl Cpu {
                     // datos de 1 fuente
                     let v = mask(sf, self.rz(rn));
                     let r = match (opcode, sf) {
-                        (0, _) => (if sf { v.reverse_bits() } else { (v as u32).reverse_bits() as u64 }),
+                        (0, _) => if sf { v.reverse_bits() } else { (v as u32).reverse_bits() as u64 },
                         (1, _) => {
                             let w = if sf { v } else { v & 0xFFFF_FFFF };
                             ((w & 0x00FF_00FF_00FF_00FF) << 8) | ((w >> 8) & 0x00FF_00FF_00FF_00FF)

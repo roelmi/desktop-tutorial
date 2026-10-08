@@ -37,7 +37,7 @@ fn rep(x: u64, es: u32) -> u64 {
     }
     r
 }
-/// Máscara de `bits` (64 o 128) bits.
+/// Máscara de 64 o 128 bits según `q`.
 fn dmask(q: bool) -> u128 {
     if q { u128::MAX } else { u64::MAX as u128 }
 }
@@ -119,11 +119,6 @@ fn fp3_dispatch(sz: bool, u: u32, a: u32, opc: u32, x: u64, y: u64, acc: u64) ->
 }
 
 impl Cpu {
-    /// Escribe un vector de 64 o 128 bits (el resto del registro se pone a cero).
-    fn setv(&mut self, r: u32, v: u128, q: bool) {
-        self.vr[r as usize] = v & dmask(q);
-    }
-
     /// Decodifica instrucciones del banco SIMD que no son de coma flotante escalar clásica.
     pub(super) fn simd_vector(&mut self, i: u32) -> Option<()> {
         let q = (i >> 30) & 1 == 1;

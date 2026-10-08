@@ -1,4 +1,5 @@
 pub mod cpu;
+pub mod formats;
 pub mod kernel;
 pub mod memory;
 pub mod nro;

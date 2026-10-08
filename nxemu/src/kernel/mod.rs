@@ -12,6 +12,7 @@ pub mod services;
 
 use crate::cpu::{Cpu, CpuError, Exit};
 use crate::memory::{Memory, PAGE_SIZE, PERM_R, PERM_RW};
+use crate::formats::{nso, pfs};
 use crate::nro;
 use ipc::{parse_request, write_response, IpcResponse, TYPE_CLOSE, TYPE_CONTROL, TYPE_CONTROL_WITH_CONTEXT};
 use services::{create, Service};
@@ -193,6 +194,36 @@ impl Kernel {
         self.mem_types.push(MemType { start: nro::STACK_TOP - nro::STACK_SIZE, end: nro::STACK_TOP, ty: 2 });
         let t = self.spawn(loaded.entry, 0, loaded.stack_top, 44, true);
         self.threads[t].cpu.x[1] = u64::MAX; // convenio de libnx: sin hilo principal «real»
+        Ok(())
+    }
+
+    /// Arranca desde un ExeFS sin cifrar (PFS0 con `rtld`, `main`, `subsdk*` y `sdk`): carga los módulos NSO en orden,
+    /// uno a continuación del otro, y empieza a ejecutar en el primero.
+    pub fn boot_exefs(&mut self, exefs: &[u8]) -> Result<(), String> {
+        let c = pfs::parse(exefs).map_err(|e| format!("ExeFS inválido: {e:?}"))?;
+        let mut names: Vec<&str> = c.files.iter().map(|f| f.name.as_str()).filter(|n| *n == "rtld" || *n == "main" || *n == "sdk" || n.starts_with("subsdk")).collect();
+        let rank = |n: &str| match n {
+            "rtld" => (0, String::new()),
+            "main" => (1, String::new()),
+            "sdk" => (3, String::new()),
+            other => (2, other.to_string()),
+        };
+        names.sort_by_key(|n| rank(n));
+        if !names.contains(&"main") {
+            return Err("el ExeFS no contiene «main»".into());
+        }
+        let mut base = nro::NRO_BASE;
+        let first = base;
+        for n in names {
+            let module = nso::parse(c.get(exefs, n).unwrap()).map_err(|e| format!("{n}: {e:?}"))?;
+            let end = module.load(&mut self.mem, base).map_err(|e| format!("{n}: {e:?}"))?;
+            self.mem_types.push(MemType { start: base, end, ty: 3 });
+            base = end;
+        }
+        self.mem.map_perm(nro::STACK_TOP - nro::STACK_SIZE, nro::STACK_SIZE, PERM_RW);
+        self.mem_types.push(MemType { start: nro::STACK_TOP - nro::STACK_SIZE, end: nro::STACK_TOP, ty: 2 });
+        let t = self.spawn(first, 0, nro::STACK_TOP, 44, true);
+        self.threads[t].cpu.x[1] = u64::MAX;
         Ok(())
     }
 

@@ -17,6 +17,9 @@ Base educativa de un emulador de Nintendo Switch, escrita en Rust.
   variables de condición, eventos, `WaitSynchronization`, `WaitForAddress`, `GetInfo`, IPC (HIPC/CMIF) y servicios
   `sm:`, `set` y `apm`. Los comandos o SVC desconocidos se registran en `Kernel::log` en lugar de fallar en silencio.
   Se basa en la documentación pública de la Switch original: del sistema de la Switch 2 no hay documentación pública.
+- **Formatos sin cifrar** (`src/formats`): NRO con reubicaciones MOD0 (`R_AARCH64_RELATIVE`/`ABS64`/`GLOB_DAT`/`JUMP_SLOT`),
+  NSO (LZ4 + SHA-256), contenedores PFS0/HFS0 y arranque desde un ExeFS (`Kernel::boot_exefs`). **No** incluye descifrado de
+  contenido comercial (NCA/XCI cifrados) ni gestión de claves.
 - **Verificación diferencial**: `tests/c/*.c` se compilan con LLVM a AArch64 (5 niveles de optimización) y su resultado
   debe coincidir con la ejecución nativa (`tests/c/build.sh` regenera los fixtures).
 - Memoria virtual por páginas.
