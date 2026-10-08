@@ -1,4 +1,4 @@
-use nxemu::{cpu::Cpu, memory::Memory, nro, svc};
+use nxemu::kernel::Kernel;
 
 fn main() {
     let Some(path) = std::env::args().nth(1) else {
@@ -9,19 +9,18 @@ fn main() {
         eprintln!("no se pudo leer {path}: {e}");
         std::process::exit(1);
     });
-    let mut mem = Memory::new();
-    let loaded = nro::load(&data, &mut mem).unwrap_or_else(|e| {
-        eprintln!("NRO inválido: {e:?}");
+    let mut k = Kernel::new();
+    if let Err(e) = k.boot_nro(&data) {
+        eprintln!("{e}");
         std::process::exit(1);
-    });
-    let mut cpu = Cpu::new();
-    cpu.pc = loaded.entry;
-    cpu.sp = loaded.stack_top;
-    match svc::run_program(&mut cpu, &mut mem, 1_000_000) {
-        Ok((code, out)) => {
-            print!("{out}");
-            std::process::exit(code as i32);
-        }
+    }
+    let result = k.run(2_000_000_000);
+    print!("{}", k.debug_output);
+    for l in &k.log {
+        eprintln!("[aviso] {l}");
+    }
+    match result {
+        Ok(code) => std::process::exit(code as i32),
         Err(e) => {
             eprintln!("error de emulación: {e}");
             std::process::exit(1);

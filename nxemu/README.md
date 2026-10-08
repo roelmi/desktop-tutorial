@@ -12,6 +12,11 @@ Base educativa de un emulador de Nintendo Switch, escrita en Rust.
   (`ZIP`/`UZP`/`TRN`/`EXT`/`TBL`), ensanchado/estrechado, carriles, `LD1`–`LD4`/`ST1`–`ST4`/`LD1R`.
 - Atómicos LSE (`LDADD`, `SWP`, `CAS`…) y exclusivos.
 - Memoria virtual con permisos por página (R/W/X), `protect`/`unmap`/`query`, y fallos de acceso.
+- **Kernel HLE (estilo Horizon)** en `src/kernel`: proceso con varios hilos (planificador por prioridades), tabla de
+  handles, tiempo virtual, SVC de memoria (`SetHeapSize`, `MapMemory`, `QueryMemory`, permisos…), hilos, mutex y
+  variables de condición, eventos, `WaitSynchronization`, `WaitForAddress`, `GetInfo`, IPC (HIPC/CMIF) y servicios
+  `sm:`, `set` y `apm`. Los comandos o SVC desconocidos se registran en `Kernel::log` en lugar de fallar en silencio.
+  Se basa en la documentación pública de la Switch original: del sistema de la Switch 2 no hay documentación pública.
 - **Verificación diferencial**: `tests/c/*.c` se compilan con LLVM a AArch64 (5 niveles de optimización) y su resultado
   debe coincidir con la ejecución nativa (`tests/c/build.sh` regenera los fixtures).
 - Memoria virtual por páginas.
@@ -19,11 +24,12 @@ Base educativa de un emulador de Nintendo Switch, escrita en Rust.
 - Kernel HLE mínimo: `ExitProcess`, `Break`, `OutputDebugString`.
 
 ## Qué NO hace
-No ejecuta juegos comerciales. Faltan: parte de NEON (estimaciones, criptografía, media precisión), `CASP`, tablas de páginas ARM reales, el resto de SVC y servicios de Horizon,
+No ejecuta juegos comerciales. Faltan: la mayoría de servicios del sistema (fs, hid, vi, nvdrv, audren…), dominios IPC, parte de NEON (estimaciones, criptografía, media precisión), `CASP`, tablas de páginas ARM reales, el resto de SVC y servicios de Horizon,
 formatos NSO/NSP/XCI, descifrado, GPU (Maxwell → Vulkan/Metal), audio y entrada.
 
 ## Uso
     cargo test
     cargo run -- programa.nro
 
-El programa de prueba está en `tests/asm/prog.s` (se ensambla con `llvm-mc`).
+Pruebas: `tests/asm/prog.s` (ensamblador), `tests/c` (verificación diferencial de la CPU) y `tests/guest`
+(programas NRO reales que ejercitan el kernel; se compilan con `tests/guest/build.sh`).

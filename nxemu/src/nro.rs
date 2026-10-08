@@ -14,6 +14,8 @@ pub enum NroError {
 pub struct LoadedNro {
     pub entry: u64,
     pub stack_top: u64,
+    /// Tamaño de la imagen en memoria (segmentos + .bss), redondeado a páginas.
+    pub image_size: u64,
 }
 
 fn u32_at(d: &[u8], o: usize) -> u32 {
@@ -52,5 +54,6 @@ pub fn load(data: &[u8], mem: &mut Memory) -> Result<LoadedNro, NroError> {
     Ok(LoadedNro {
         entry: NRO_BASE + text.0,
         stack_top: STACK_TOP,
+        image_size: (image + bss).div_ceil(crate::memory::PAGE_SIZE) * crate::memory::PAGE_SIZE,
     })
 }

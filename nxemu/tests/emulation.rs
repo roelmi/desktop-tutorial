@@ -1,4 +1,4 @@
-use nxemu::{cpu::Cpu, memory::Memory, nro, svc};
+use nxemu::{kernel::Kernel, memory::Memory, nro};
 
 /// Ensambla un NRO0 mínimo: cabecera de 0x80 bytes (primera instrucción = `b` al código).
 fn make_nro(code: &[u8]) -> Vec<u8> {
@@ -14,12 +14,10 @@ fn make_nro(code: &[u8]) -> Vec<u8> {
 }
 
 fn boot(code: &[u8]) -> Result<(u64, String), String> {
-    let mut mem = Memory::new();
-    let n = nro::load(&make_nro(code), &mut mem).map_err(|e| format!("{e:?}"))?;
-    let mut cpu = Cpu::new();
-    cpu.pc = n.entry;
-    cpu.sp = n.stack_top;
-    svc::run_program(&mut cpu, &mut mem, 100)
+    let mut k = Kernel::new();
+    k.boot_nro(&make_nro(code))?;
+    let code = k.run(10_000_000)?;
+    Ok((code, k.debug_output.clone()))
 }
 
 #[test]
@@ -39,7 +37,7 @@ fn rechaza_nro_invalido() {
 fn instruccion_no_implementada_da_error() {
     // 0x00000000 (udf) no está soportada.
     let e = boot(&[0, 0, 0, 0]).unwrap_err();
-    assert!(e.contains("Unimplemented"), "{e}");
+    assert!(e.contains("no implementada"), "{e}");
 }
 
 #[test]

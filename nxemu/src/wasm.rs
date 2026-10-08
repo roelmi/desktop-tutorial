@@ -3,7 +3,7 @@
 //! Flujo: `nx_alloc` → JS copia el .nro → `nx_run(ptr, len, max_svcs)` →
 //! `nx_output_ptr/len` (texto de debug) y `nx_error_ptr/len` (si falló).
 
-use crate::{cpu::Cpu, memory::Memory, nro, svc};
+use crate::kernel::Kernel;
 use std::sync::Mutex;
 
 #[derive(Default)]
@@ -34,22 +34,15 @@ pub unsafe extern "C" fn nx_run(ptr: *const u8, len: usize, max_svcs: u32) -> i6
     let mut st = STATE.lock().unwrap();
     st.out.clear();
     st.err.clear();
-    let mut mem = Memory::new();
-    let loaded = match nro::load(data, &mut mem) {
-        Ok(l) => l,
-        Err(e) => {
-            st.err = format!("NRO inválido: {e:?}").into_bytes();
-            return -1;
-        }
-    };
-    let mut cpu = Cpu::new();
-    cpu.pc = loaded.entry;
-    cpu.sp = loaded.stack_top;
-    match svc::run_program(&mut cpu, &mut mem, max_svcs) {
-        Ok((code, out)) => {
-            st.out = out.into_bytes();
-            code as i64
-        }
+    let mut k = Kernel::new();
+    if let Err(e) = k.boot_nro(data) {
+        st.err = e.into_bytes();
+        return -1;
+    }
+    let result = k.run(max_svcs as u64 * 1000 + 1_000_000_000);
+    st.out = k.debug_output.clone().into_bytes();
+    match result {
+        Ok(code) => code as i64,
         Err(e) => {
             st.err = e.into_bytes();
             -1
