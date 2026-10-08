@@ -50,3 +50,21 @@ fn flags_de_cmp() {
     let code: Vec<u8> = words.iter().flat_map(|w| w.to_le_bytes()).collect();
     assert_eq!(boot(&code).unwrap().0, 1);
 }
+
+fn words(w: &[u32]) -> Vec<u8> {
+    w.iter().flat_map(|x| x.to_le_bytes()).collect()
+}
+
+#[test]
+fn escribir_en_el_codigo_falla_por_permisos() {
+    // adr x0, . ; str x0, [x0]   (el .text es R+X, no W)
+    let e = boot(&words(&[0x1000_0000, 0xF900_0000])).unwrap_err();
+    assert!(e.contains("Permission") && e.contains("Write"), "{e}");
+}
+
+#[test]
+fn ejecutar_desde_la_pila_falla_por_permisos() {
+    // movz x0, #0xFF0, lsl #16 ; br x0   (la pila es RW, no X)
+    let e = boot(&words(&[0xD2A1_FE00, 0xD61F_0000])).unwrap_err();
+    assert!(e.contains("Permission") && e.contains("Execute"), "{e}");
+}

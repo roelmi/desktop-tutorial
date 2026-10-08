@@ -12,6 +12,7 @@ for src in *.c; do
   # Las pruebas de coma flotante (fp*.c) usan los registros v; el resto se limita a enteros.
   case "$name" in fp*) regs=""; vec="-fno-vectorize -fno-slp-vectorize" ;;
     neon*|vec*) regs=""; vec="" ;;
+    atomic*) regs="-mgeneral-regs-only -march=armv8.2-a"; vec="-fno-vectorize -fno-slp-vectorize" ;;
     *) regs="-mgeneral-regs-only"; vec="-fno-vectorize -fno-slp-vectorize" ;; esac
   for opt in O0 O1 O2 O3 Os; do
     clang --target=aarch64-none-elf -$opt -ffreestanding -fno-builtin -nostdlib $regs -ffp-contract=off -fno-math-errno \

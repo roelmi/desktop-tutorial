@@ -1,4 +1,4 @@
-use crate::memory::Memory;
+use crate::memory::{Memory, PERM_R, PERM_RW, PERM_RX};
 
 pub const NRO_BASE: u64 = 0x0800_0000;
 pub const STACK_TOP: u64 = 0x1000_0000;
@@ -38,9 +38,17 @@ pub fn load(data: &[u8], mem: &mut Memory) -> Result<LoadedNro, NroError> {
             return Err(NroError::BadSegment);
         }
     }
-    mem.map(NRO_BASE, size.max(data.len() as u64) + bss);
+    // Se carga como RW y luego se aplican los permisos reales de cada segmento (.text RX, .rodata R, .data/.bss RW).
+    let image = size.max(data.len() as u64);
+    mem.map_perm(NRO_BASE, image + bss, PERM_RW);
     mem.write(NRO_BASE, data).map_err(|_| NroError::BadSegment)?;
-    mem.map(STACK_TOP - STACK_SIZE, STACK_SIZE);
+    let page = crate::memory::PAGE_SIZE;
+    let seg_end = |s: (u64, u64)| (s.0 + s.1).div_ceil(page) * page;
+    mem.protect(NRO_BASE + text.0, seg_end(text) - text.0, PERM_RX).map_err(|_| NroError::BadSegment)?;
+    if ro.1 > 0 {
+        mem.protect(NRO_BASE + ro.0, seg_end(ro) - ro.0, PERM_R).map_err(|_| NroError::BadSegment)?;
+    }
+    mem.map_perm(STACK_TOP - STACK_SIZE, STACK_SIZE, PERM_RW);
     Ok(LoadedNro {
         entry: NRO_BASE + text.0,
         stack_top: STACK_TOP,

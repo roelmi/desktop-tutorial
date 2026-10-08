@@ -192,7 +192,7 @@ impl Cpu {
 
     pub fn step(&mut self, mem: &mut Memory) -> Result<Option<Exit>, CpuError> {
         let pc = self.pc;
-        let i = mem.read_uint(pc, 4)? as u32;
+        let i = mem.fetch32(pc)?;
         let mut next = pc.wrapping_add(4);
         let unimpl = || CpuError::Unimplemented { pc, insn: i };
 
@@ -449,7 +449,23 @@ impl Cpu {
         // Exclusivos / adquirir-liberar: STXR, LDXR, STLR, LDAR… (un solo hilo: acceso normal)
         if i & 0x3F00_0000 == 0x0800_0000 {
             if (i >> 21) & 1 == 1 {
-                return None; // pares exclusivos / CAS
+                // CAS / CASA / CASL / CASAL: compara y, si coincide, guarda
+                if (i >> 23) & 1 == 1 && (i >> 10) & 0x1F == 0x1F {
+                    let size = 1usize << size_log;
+                    let rs = (i >> 16) & 31;
+                    let addr = self.rs(rn);
+                    let r = (|| -> Res {
+                        let old = mem.read_uint(addr, size)?;
+                        let cmp = self.rz(rs) & ones(size as u32 * 8);
+                        if old == cmp {
+                            mem.write_uint(addr, size, self.rz(rt))?;
+                        }
+                        self.wz(rs, old);
+                        Ok(())
+                    })();
+                    return Some(r);
+                }
+                return None; // pares exclusivos
             }
             let size = 1usize << size_log;
             let l = (i >> 22) & 1 == 1;
@@ -481,6 +497,9 @@ impl Cpu {
         let (addr, wb) = if unsigned {
             (self.rs(rn).wrapping_add((((i >> 10) & 0xFFF) as u64) << size_log), None)
         } else if (i >> 21) & 1 == 1 {
+            if (i >> 10) & 3 == 0 {
+                return self.atomic_op(i, mem);
+            }
             if (i >> 10) & 3 != 2 {
                 return None;
             }
@@ -520,6 +539,45 @@ impl Cpu {
             if let Some(w) = wb {
                 self.ws(rn, w);
             }
+            Ok(())
+        })();
+        Some(r)
+    }
+
+    /// Operaciones atómicas de memoria (LSE): LDADD, LDCLR, LDEOR, LDSET, LDSMAX/MIN, LDUMAX/MIN, SWP, LDAPR.
+    fn atomic_op(&mut self, i: u32, mem: &mut Memory) -> Option<Res> {
+        let (rt, rn, rs) = (i & 31, (i >> 5) & 31, (i >> 16) & 31);
+        let size = 1usize << (i >> 30);
+        let bits = size as u32 * 8;
+        let (opc, o3) = ((i >> 12) & 7, (i >> 15) & 1);
+        let addr = self.rs(rn);
+        let r = (|| -> Res {
+            let old = mem.read_uint(addr, size)?;
+            if o3 == 1 {
+                if opc == 0 {
+                    // SWP
+                    mem.write_uint(addr, size, self.rz(rs))?;
+                } else if opc != 4 {
+                    return Err(CpuError::Unimplemented { pc: self.pc, insn: i });
+                }
+                // opc == 4: LDAPR (carga con adquisición, sin escritura)
+                self.wz(rt, old);
+                return Ok(());
+            }
+            let v = self.rz(rs) & ones(bits);
+            let (so, sv) = (sext(old, bits), sext(v, bits));
+            let new = match opc {
+                0 => old.wrapping_add(v),
+                1 => old & !v,
+                2 => old ^ v,
+                3 => old | v,
+                4 => if so > sv { old } else { v },
+                5 => if so < sv { old } else { v },
+                6 => old.max(v),
+                _ => old.min(v),
+            };
+            mem.write_uint(addr, size, new & ones(bits))?;
+            self.wz(rt, old);
             Ok(())
         })();
         Some(r)
