@@ -100,6 +100,16 @@ test('un archivo .xci se rechaza con un aviso claro', async () => {
   assert.equal(await page.locator('.game').count(), before);
 });
 
+test('atajo de Switch: aparece en la biblioteca y se puede quitar', async () => {
+  await page.click('nav button[data-tab=switch]');
+  const answers = ['Zelda Echoes of Wisdom', ''];
+  page.on('dialog', (d) => d.accept(answers.shift() ?? ''));
+  await page.click('#add-shortcut');
+  await page.click('nav button[data-tab=library]');
+  await page.waitForSelector('.game:has-text("Zelda Echoes of Wisdom")');
+  assert.match(await page.textContent('#library'), /Switch \(MeloNX\)/);
+});
+
 test('sin errores de JavaScript en la página principal', () => {
   assert.deepEqual(errors, []);
 });

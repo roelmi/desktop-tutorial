@@ -32,4 +32,4 @@ Los juegos se guardan solo en IndexedDB del dispositivo. Nexus no incluye juegos
 ## Nexus (versión actual)
 - 17 sistemas retro (EmulatorJS/libretro en WASM), biblioteca con portadas, favoritos, "Seguir jugando", búsqueda y ajustes.
 - Switch: Nexus **no** ejecuta juegos retail (el navegador de iOS no permite JIT). La pestaña es una guía para instalar MeloNX aparte, más un laboratorio de homebrew con nxemu.
-- Pruebas: `CHROMIUM=/ruta/chrome npm test` (7 pruebas e2e).
+- Pruebas: `CHROMIUM=/ruta/chrome npm test` (8 pruebas e2e).

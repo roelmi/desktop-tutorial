@@ -17,6 +17,7 @@ export const SYSTEMS = {
   lynx:   { name: 'Atari Lynx',        short: 'LYNX', ext: ['lnx'],                ejs: 'lynx',      color: '#a34b19' },
   ngp:    { name: 'Neo Geo Pocket',    short: 'NGP',  ext: ['ngp', 'ngc'],         ejs: 'ngp',       color: '#2a7f8f' },
   ws:     { name: 'WonderSwan',        short: 'WS',   ext: ['ws', 'wsc'],          ejs: 'ws',        color: '#4c6ef5' },
+  melonx: { name: 'Switch (MeloNX)', short: 'NSW', ext: [], ejs: null, color: '#e4002b' },
   switch: { name: 'Switch (homebrew)', short: 'NSW',  ext: ['nro'],                ejs: null,        color: '#e4002b' },
 };
 

@@ -156,7 +156,7 @@ function openSheet(g) {
   const d = $('#sheet');
   const sys = SYSTEMS[g.system];
   const close = () => d.close();
-  const head = el('div', { className: 'sheet-head' }, coverEl(g), el('div', {}, el('h2', { textContent: g.title }), el('div', { className: 'sub', textContent: `${sys.name} · ${mb(g.size)} MB${g.lastPlayed ? ' · jugado ' + new Date(g.lastPlayed).toLocaleDateString('es') : ''}` })));
+  const head = el('div', { className: 'sheet-head' }, coverEl(g), el('div', {}, el('h2', { textContent: g.title }), el('div', { className: 'sub', textContent: `${sys.name}${g.system === 'melonx' ? ' · atajo' : ' · ' + mb(g.size) + ' MB'}${g.lastPlayed ? ' · jugado ' + new Date(g.lastPlayed).toLocaleDateString('es') : ''}` })));
   d.replaceChildren(
     head,
     el('div', { className: 'list' },
@@ -165,7 +165,7 @@ function openSheet(g) {
       sheetButton('✎  Renombrar', async () => { const t = prompt('Nuevo nombre', g.title); if (t?.trim()) { g.title = t.trim(); await putGame(g); close(); refresh(); } }),
       sheetButton('🖼  Elegir carátula…', () => { close(); pickCover(g); }),
       ...(g.cover ? [sheetButton('Quitar carátula', async () => { delete g.cover; g.coverCustom = false; await putGame(g); close(); refresh(); })] : []),
-      sheetButton('🗑  Eliminar del dispositivo', async () => { if (confirm(`¿Eliminar «${g.title}» y sus partidas guardadas?`)) { await deleteGame(g.id); close(); refresh(); } }, 'danger'),
+      sheetButton('🗑  Eliminar del dispositivo', async () => { if (confirm(g.system === 'melonx' ? `¿Quitar el atajo «${g.title}»? (el juego en MeloNX no se toca)` : `¿Eliminar «${g.title}» y sus partidas guardadas?`)) { await deleteGame(g.id); close(); refresh(); } }, 'danger'),
       sheetButton('Cerrar', close),
     ),
   );
@@ -277,7 +277,27 @@ async function lockScreen() {
 }
 const unlockScreen = () => { wake?.release?.(); wake = null; };
 
+/** Los «juegos» de MeloNX son atajos: Nexus no guarda el juego, solo abre MeloNX con su esquema melonx://. */
+async function launchMeloNX(g) {
+  g.lastPlayed = Date.now();
+  await putGame(g);
+  const q = g.titleId ? `id=${encodeURIComponent(g.titleId)}` : `name=${encodeURIComponent(g.title)}`;
+  toast('Abriendo MeloNX… (si no pasa nada, instálalo y ábrelo una vez)');
+  location.href = `melonx://game?${q}`;
+}
+
+function addSwitchShortcut() {
+  const title = prompt('Nombre del juego tal como aparece en MeloNX');
+  if (!title?.trim()) return;
+  const titleId = (prompt('ID del título (opcional, 16 caracteres hexadecimales; déjalo vacío para buscar por nombre)') || '').trim();
+  putGame({ id: newId(), title: title.trim(), filename: '', system: 'melonx', size: 0, added: Date.now(), titleId: titleId || undefined }).then(refresh);
+}
+$('#add-shortcut').onclick = addSwitchShortcut;
+$('#open-melonx').onclick = () => { location.href = 'melonx://'; };
+
 function play(id) {
+  const g = games.find((x) => x.id === id);
+  if (g?.system === 'melonx') { launchMeloNX(g); return; }
   playing = id;
   frame().src = `play.html?id=${encodeURIComponent(id)}`;
   $('#player').hidden = false;
