@@ -34,9 +34,16 @@ pub struct Cpu {
     pub v: bool,
     /// Registro de hilo local (TLS), `TPIDR_EL0`.
     pub tpidr_el0: u64,
+    /// Registros SIMD/FP v0–v31 (128 bits).
+    pub vr: [u128; 32],
+    pub fpcr: u64,
+    pub fpsr: u64,
 }
 
-type Res = Result<(), CpuError>;
+pub(crate) type Res = Result<(), CpuError>;
+
+mod fpu;
+mod neon;
 
 fn mask(sf: bool, v: u64) -> u64 {
     if sf { v } else { v & 0xFFFF_FFFF }
@@ -199,6 +206,7 @@ impl Cpu {
             }
             op if op & 0b0101 == 0b0100 => self.load_store(i, pc, mem).ok_or_else(unimpl)??,
             op if op & 0b0111 == 0b0101 => self.dp_reg(i).ok_or_else(unimpl)?,
+            op if op & 0b0111 == 0b0111 => self.simd_fp(i).ok_or_else(unimpl)?,
             _ => return Err(unimpl()),
         }
         self.pc = next;
@@ -356,14 +364,17 @@ impl Cpu {
             match sysreg {
                 0x5E82 => self.wz(rd, self.tpidr_el0),
                 0x5F02 => self.wz(rd, 0), // CNTVCT_EL0 (sin reloj aún)
+                0x5A20 => self.wz(rd, self.fpcr),
+                0x5A21 => self.wz(rd, self.fpsr),
                 _ => return None,
             }
         } else if i & 0xFFF0_0000 == 0xD510_0000 {
             // MSR: TPIDR_EL0
-            if (i >> 5) & 0x7FFF == 0x5E82 {
-                self.tpidr_el0 = self.rz(rd);
-            } else {
-                return None;
+            match (i >> 5) & 0x7FFF {
+                0x5E82 => self.tpidr_el0 = self.rz(rd),
+                0x5A20 => self.fpcr = self.rz(rd),
+                0x5A21 => self.fpsr = self.rz(rd),
+                _ => return None,
             }
         } else {
             return None;
@@ -377,7 +388,7 @@ impl Cpu {
         let size_log = i >> 30;
         let vec = (i >> 26) & 1 == 1;
         if vec {
-            return None; // SIMD/FP aún no soportado
+            return self.ldst_vec(i, pc, mem);
         }
 
         // LDR (literal)

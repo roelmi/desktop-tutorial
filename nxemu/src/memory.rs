@@ -60,4 +60,14 @@ impl Memory {
     pub fn write_uint(&mut self, addr: u64, n: usize, v: u64) -> Result<(), MemError> {
         self.write(addr, &v.to_le_bytes()[..n])
     }
+
+    pub fn read_u128(&self, addr: u64) -> Result<u128, MemError> {
+        let mut b = [0u8; 16];
+        self.read(addr, &mut b)?;
+        Ok(u128::from_le_bytes(b))
+    }
+
+    pub fn write_u128(&mut self, addr: u64, v: u128) -> Result<(), MemError> {
+        self.write(addr, &v.to_le_bytes())
+    }
 }
