@@ -60,7 +60,7 @@ select { width: auto; max-width: 60%; padding: 8px 10px; }
 .row-scroll { display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; margin: 0 -16px; padding: 2px 16px 8px; }
 .row-scroll::-webkit-scrollbar { display: none; }
 .row-scroll .cell { flex: none; width: 128px; scroll-snap-align: start; }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 16px 12px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 16px 12px; }
 .cell { position: relative; min-width: 0; }
 .game { display: block; width: 100%; background: none; border: 0; padding: 0; text-align: left; color: inherit; font: inherit; cursor: pointer; -webkit-touch-callout: none; user-select: none; }
 .cover { position: relative; width: 100%; aspect-ratio: 1; border-radius: 20px; overflow: hidden; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 38px; letter-spacing: -1px; box-shadow: 0 6px 16px #0005, inset 0 0 0 1px #ffffff1a; transition: transform .12s; }

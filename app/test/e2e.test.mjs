@@ -33,6 +33,7 @@ before(async () => {
 after(async () => { await browser?.close(); srv?.close(); });
 
 test('la app carga y muestra la biblioteca vacía', async () => {
+  await page.click('#help .btn.primary'); // guía de bienvenida de la primera vez
   assert.equal((await page.textContent('#title')).trim(), 'Biblioteca');
   assert.equal(await page.isVisible('#empty'), true);
 });
@@ -63,18 +64,21 @@ test('importa una ROM, la lista y la arranca con el núcleo retro', async () => 
   }, null, { timeout: 60000 });
   await page.screenshot({ path: process.env.SHOT || undefined });
   await page.click('#exit');
+  await page.waitForSelector('#player', { state: 'hidden', timeout: 15000 });
   assert.equal(await page.isHidden('#player'), true);
 });
 
 test('los núcleos añadidos (Master System) también arrancan', async () => {
   await page.setInputFiles('#file', { name: 'Test.sms', mimeType: 'application/octet-stream', buffer: Buffer.alloc(0x8000, 0xc7) });
-  await page.waitForSelector('.game:has-text("Master System")');
-  await page.click('.game:has-text("Master System")');
+  await page.waitForSelector('.game:has-text("Test")');
+  assert.match(await page.textContent('#library'), /Master System/);
+  await page.click('.game:has-text("Test")');
   await page.waitForFunction(() => {
     const d = document.getElementById('frame').contentDocument;
     return d && d.querySelector('.ejs_menu_bar') && !d.querySelector('.ejs_start_button');
   }, null, { timeout: 60000 });
   await page.click('#exit');
+  await page.waitForSelector('#player', { state: 'hidden', timeout: 15000 });
 });
 
 test('Switch: la lista de preparación y los ajustes funcionan', async () => {

@@ -28,3 +28,8 @@ El workflow `.github/workflows/pages.yml` despliega `app/` en GitHub Pages
 ## Privacidad y legalidad
 Los juegos se guardan solo en IndexedDB del dispositivo. Nexus no incluye juegos, BIOS, claves ni firmware; usa
 únicamente copias de tu propiedad. Los núcleos de EmulatorJS/libretro tienen sus propias licencias (GPL/LGPL, etc.).
+
+## Nexus (versión actual)
+- 17 sistemas retro (EmulatorJS/libretro en WASM), biblioteca con portadas, favoritos, "Seguir jugando", búsqueda y ajustes.
+- Switch: Nexus **no** ejecuta juegos retail (el navegador de iOS no permite JIT). La pestaña es una guía para instalar MeloNX aparte, más un laboratorio de homebrew con nxemu.
+- Pruebas: `CHROMIUM=/ruta/chrome npm test` (7 pruebas e2e).
