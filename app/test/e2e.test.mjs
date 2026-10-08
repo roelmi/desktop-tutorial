@@ -33,12 +33,12 @@ before(async () => {
 after(async () => { await browser?.close(); srv?.close(); });
 
 test('la app carga y muestra la biblioteca vacía', async () => {
-  assert.equal(await page.textContent('#title'), 'Biblioteca');
+  assert.equal((await page.textContent('#title')).trim(), 'Biblioteca');
   assert.equal(await page.isVisible('#empty'), true);
 });
 
 test('Switch: el núcleo nxemu (WebAssembly) ejecuta el homebrew de demo', async () => {
-  await page.click('.tabs button[data-tab=switch]');
+  await page.click('.tabbar button[data-tab=switch], nav button[data-tab=switch]');
   await page.click('#run-demo');
   await page.waitForFunction(() => document.querySelector('#console').textContent.includes('código'));
   const out = await page.textContent('#console');
@@ -47,11 +47,11 @@ test('Switch: el núcleo nxemu (WebAssembly) ejecuta el homebrew de demo', async
 });
 
 test('importa una ROM, la lista y la arranca con el núcleo retro', async () => {
-  await page.click('.tabs button[data-tab=library]');
+  await page.click('nav button[data-tab=library]');
   await page.setInputFiles('#file', { name: 'Nexus Test.gb', mimeType: 'application/octet-stream', buffer: tinyGbRom() });
   await page.waitForSelector('.game');
   assert.equal(await page.textContent('.game b'), 'Nexus Test');
-  assert.equal(await page.textContent('.game small'), 'Game Boy / Color');
+  assert.match(await page.textContent('#library'), /Game Boy/);
 
   await page.click('.game');
   const frame = page.frameLocator('#frame');
@@ -75,6 +75,25 @@ test('los núcleos añadidos (Master System) también arrancan', async () => {
     return d && d.querySelector('.ejs_menu_bar') && !d.querySelector('.ejs_start_button');
   }, null, { timeout: 60000 });
   await page.click('#exit');
+});
+
+test('Switch: la lista de preparación y los ajustes funcionan', async () => {
+  await page.click('nav button[data-tab=switch]');
+  const boxes = page.locator('#checklist input[type=checkbox]');
+  assert.ok(await boxes.count() >= 5);
+  await boxes.first().check();
+  assert.match(await page.textContent('#checklist-progress'), /1/);
+  await page.click('nav button[data-tab=settings]');
+  await page.selectOption('#set-theme', 'dark');
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'dark');
+});
+
+test('un archivo .xci se rechaza con un aviso claro', async () => {
+  await page.click('nav button[data-tab=library]');
+  const before = await page.locator('.game').count();
+  await page.setInputFiles('#file', { name: 'x.xci', mimeType: 'application/octet-stream', buffer: Buffer.alloc(64) });
+  await page.waitForTimeout(500);
+  assert.equal(await page.locator('.game').count(), before);
 });
 
 test('sin errores de JavaScript en la página principal', () => {

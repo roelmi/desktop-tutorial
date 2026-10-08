@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Jugando</title>
 <style>
-  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; overscroll-behavior: none; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   #game { width: 100%; height: 100%; }
   #err { position: fixed; inset: 0; display: none; place-items: center; color: #fff; font: 16px system-ui; padding: 24px; text-align: center; }
 </style>
@@ -22,33 +22,48 @@ const realFetch = window.fetch.bind(window);
 window.fetch = (u, ...a) => (String(u?.url || u).includes('emulatorjs.org') ? Promise.resolve(new Response('', { status: 503 })) : realFetch(u, ...a));
 
 const fail = (msg) => { const e = document.getElementById('err'); e.textContent = msg; e.style.display = 'grid'; };
+const send = (msg) => parent.postMessage(msg, location.origin);
 const id = new URLSearchParams(location.search).get('id');
 const g = id && await getGame(id);
+let started = false;
+
 if (!g) fail('No se encontró el juego en la biblioteca.');
 else if (!SYSTEMS[g.system]?.ejs) fail('Este sistema no usa EmulatorJS.');
 else {
   const file = new File([g.blob], 'game.' + extOf(g.filename), { type: 'application/octet-stream' });
-  window.EJS_player = '#game';
-  window.EJS_core = SYSTEMS[g.system].ejs;
-  window.EJS_gameUrl = file;
-  window.EJS_gameName = g.id;           // clave de los estados guardados y partidas
-  window.EJS_gameID = g.id;
-  window.EJS_pathtodata = 'vendor/ejs/';
-  window.EJS_language = navigator.language?.startsWith('es') ? 'es-ES' : 'en-US';
-  window.EJS_startOnLoaded = true;
-  window.EJS_threads = false;
-  window.EJS_disableDatabases = false;
-  window.EJS_backgroundColor = '#000';
-  window.EJS_onGameStart = () => {
-    g.lastPlayed = Date.now();
-    putGame(g);
-    parent.postMessage({ type: 'nexus-started' }, location.origin);
-  };
+  Object.assign(window, {
+    EJS_player: '#game',
+    EJS_core: SYSTEMS[g.system].ejs,
+    EJS_gameUrl: file,
+    EJS_gameName: g.id,            // clave de los estados guardados y partidas
+    EJS_gameID: g.id,
+    EJS_pathtodata: 'vendor/ejs/',
+    EJS_language: navigator.language?.startsWith('es') ? 'es-ES' : 'en-US',
+    EJS_startOnLoaded: true,
+    EJS_threads: false,
+    EJS_backgroundColor: '#000',
+    EJS_defaultOptions: { 'virtual-gamepad': 'enabled' },
+    EJS_onGameStart: () => { started = true; send({ type: 'nexus-started' }); },
+  });
   const s = document.createElement('script');
   s.src = 'vendor/ejs/loader.js';
   s.onerror = () => fail('Faltan los núcleos de emulación. Ejecuta `npm run vendor` en app/.');
   document.body.appendChild(s);
 }
+
+// Órdenes del contenedor: pausar/reanudar y capturar la última imagen (para la carátula).
+addEventListener('message', (e) => {
+  if (e.origin !== location.origin || e.source !== parent) return;
+  const emu = window.EJS_emulator;
+  try {
+    if (e.data?.type === 'nexus-pause') emu?.gameManager?.toggleMainLoop(0);
+    if (e.data?.type === 'nexus-resume') emu?.gameManager?.toggleMainLoop(1);
+    if (e.data?.type === 'nexus-snapshot-request') {
+      if (!started || !emu) return send({ type: 'nexus-snapshot', blob: null });
+      emu.screenshot((blob) => send({ type: 'nexus-snapshot', blob }), 'canvas', 'png', 1);
+    }
+  } catch { send({ type: 'nexus-snapshot', blob: null }); }
+});
 </script>
 </body>
 </html>

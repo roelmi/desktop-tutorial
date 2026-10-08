@@ -4,7 +4,8 @@ import { cpSync, mkdirSync, rmSync, existsSync, readFileSync, writeFileSync } fr
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const CORES = ['fceumm', 'snes9x', 'gambatte', 'mgba', 'mupen64plus_next', 'melonds', 'genesis_plus_gx', 'pcsx_rearmed', 'mednafen_pce', 'stella2014'];
+const CORES = ['fceumm', 'snes9x', 'gambatte', 'mgba', 'mupen64plus_next', 'melonds', 'genesis_plus_gx', 'pcsx_rearmed', 'mednafen_pce', 'stella2014',
+  'mednafen_ngp', 'mednafen_wswan', 'handy', 'prosystem', 'beetle_vb'];
 const LANGS = ['en-US.json', 'es-ES.json', 'pt-BR.json', 'README.md'];
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
