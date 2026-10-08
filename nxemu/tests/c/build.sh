@@ -10,10 +10,12 @@ for src in *.c; do
   ./out/$name.native > "out/$name.expected"
   rm "out/$name.native"
   # Las pruebas de coma flotante (fp*.c) usan los registros v; el resto se limita a enteros.
-  case "$name" in fp*|neon*) regs="" ;; *) regs="-mgeneral-regs-only" ;; esac
+  case "$name" in fp*) regs=""; vec="-fno-vectorize -fno-slp-vectorize" ;;
+    neon*|vec*) regs=""; vec="" ;;
+    *) regs="-mgeneral-regs-only"; vec="-fno-vectorize -fno-slp-vectorize" ;; esac
   for opt in O0 O1 O2 O3 Os; do
     clang --target=aarch64-none-elf -$opt -ffreestanding -fno-builtin -nostdlib $regs -ffp-contract=off -fno-math-errno \
-      -fno-vectorize -fno-slp-vectorize -fwrapv -fuse-ld=lld -Wl,-T,link.ld -Wl,--build-id=none \
+      $vec -fwrapv -fuse-ld=lld -Wl,-T,link.ld -Wl,--build-id=none \
       -Wno-unused-function "$src" -o "out/$name.$opt.elf"
     llvm-objcopy -O binary "out/$name.$opt.elf" "out/$name.$opt.bin"
     rm "out/$name.$opt.elf"

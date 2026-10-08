@@ -387,6 +387,9 @@ impl Cpu {
         let (rt, rn) = (i & 31, (i >> 5) & 31);
         let size_log = i >> 30;
         let vec = (i >> 26) & 1 == 1;
+        if i & 0xBE00_0000 == 0x0C00_0000 {
+            return self.ldst_struct(i, mem);
+        }
         if vec {
             return self.ldst_vec(i, pc, mem);
         }

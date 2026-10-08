@@ -5,7 +5,7 @@ use crate::memory::Memory;
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
 /// Operaciones comunes a f32 y f64 para escribir cada instrucción una sola vez.
-trait Float: Copy + PartialOrd + Add<Output = Self> + Sub<Output = Self> + Mul<Output = Self> + Div<Output = Self> + Neg<Output = Self> {
+pub(super) trait Float: Copy + PartialOrd + Add<Output = Self> + Sub<Output = Self> + Mul<Output = Self> + Div<Output = Self> + Neg<Output = Self> {
     fn from_bits64(b: u64) -> Self;
     fn bits64(self) -> u64;
     fn is_nan_(self) -> bool;
@@ -37,7 +37,7 @@ macro_rules! impl_float {
 impl_float!(f32, u32, 0x0040_0000);
 impl_float!(f64, u64, 0x0008_0000_0000_0000);
 
-fn fmax<T: Float>(a: T, b: T, num: bool) -> T {
+pub(super) fn fmax<T: Float>(a: T, b: T, num: bool) -> T {
     if a.is_nan_() {
         return if num && !b.is_nan_() { b } else { a.quiet() };
     }
@@ -47,7 +47,7 @@ fn fmax<T: Float>(a: T, b: T, num: bool) -> T {
     if a > b { a } else if b > a { b } else if a.neg_sign() { b } else { a }
 }
 
-fn fmin<T: Float>(a: T, b: T, num: bool) -> T {
+pub(super) fn fmin<T: Float>(a: T, b: T, num: bool) -> T {
     if a.is_nan_() {
         return if num && !b.is_nan_() { b } else { a.quiet() };
     }
@@ -58,7 +58,7 @@ fn fmin<T: Float>(a: T, b: T, num: bool) -> T {
 }
 
 /// Redondeo a entero con el modo dado: 0 al par más cercano, 1 hacia +inf, 2 hacia -inf, 3 a cero, 4 empates lejos de cero.
-fn round_mode(v: f64, mode: u32) -> f64 {
+pub(super) fn round_mode(v: f64, mode: u32) -> f64 {
     match mode {
         0 => v.round_ties_even(),
         1 => v.ceil(),
@@ -68,7 +68,7 @@ fn round_mode(v: f64, mode: u32) -> f64 {
     }
 }
 
-fn half_to_f32(h: u16) -> f32 {
+pub(super) fn half_to_f32(h: u16) -> f32 {
     let (s, e, m) = (((h >> 15) & 1) as u32, ((h >> 10) & 0x1F) as u32, (h & 0x3FF) as u32);
     let bits = if e == 0 {
         if m == 0 {
@@ -87,7 +87,7 @@ fn half_to_f32(h: u16) -> f32 {
     f32::from_bits(bits)
 }
 
-fn f32_to_half(f: f32) -> u16 {
+pub(super) fn f32_to_half(f: f32) -> u16 {
     let b = f.to_bits();
     let s = ((b >> 16) & 0x8000) as u16;
     let e = ((b >> 23) & 0xFF) as i32;
@@ -118,7 +118,7 @@ fn f32_to_half(f: f32) -> u16 {
 }
 
 /// Expande el inmediato de 8 bits de FMOV (VFPExpandImm).
-fn expand_imm(imm8: u32, double: bool) -> u64 {
+pub(super) fn expand_imm(imm8: u32, double: bool) -> u64 {
     let (a, b, cdefgh) = ((imm8 >> 7) & 1, (imm8 >> 6) & 1, imm8 & 0x3F);
     if double {
         let exp = ((b ^ 1) << 10) | ((if b == 1 { 0xFFu32 } else { 0 }) << 2) | (cdefgh >> 4);
