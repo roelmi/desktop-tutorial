@@ -110,6 +110,18 @@ test('atajo de Switch: aparece en la biblioteca y se puede quitar', async () => 
   assert.match(await page.textContent('#library'), /Switch \(MeloNX\)/);
 });
 
+test('modo consola: carrusel, navegación con teclado y salida', async () => {
+  await page.click('nav button[data-tab=library]');
+  await page.click('#big-open');
+  assert.equal(await page.isVisible('#big'), true);
+  const first = await page.textContent('#big-title');
+  await page.keyboard.press('ArrowRight');
+  const second = await page.textContent('#big-title');
+  assert.notEqual(first, second);
+  await page.keyboard.press('Escape');
+  assert.equal(await page.isHidden('#big'), true);
+});
+
 test('sin errores de JavaScript en la página principal', () => {
   assert.deepEqual(errors, []);
 });

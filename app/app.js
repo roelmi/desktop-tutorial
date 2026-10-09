@@ -44,7 +44,7 @@ function showTab(name) {
     b.setAttribute('aria-current', b.dataset.tab === name ? 'page' : 'false');
   });
   $('#title').textContent = TITLES[name];
-  $('#add').hidden = $('#search-toggle').hidden = name !== 'library';
+  $('#add').hidden = $('#search-toggle').hidden = $('#big-open').hidden = name !== 'library';
   if (name === 'settings') updateStorage();
   scrollTo(0, 0);
 }
@@ -332,6 +332,85 @@ async function exitGame() {
   refresh();
 }
 $('#exit').onclick = exitGame;
+
+/* ------------------------------------------------------------- modo consola (estilo SteamOS) */
+const big = { open: false, list: [], i: 0, raf: 0, last: 0 };
+const bigEl = () => $('#big');
+
+function bigRender() {
+  big.list = [...games].sort(byRecent);
+  const track = $('#big-track');
+  track.replaceChildren(...big.list.map((g, idx) => {
+    const b = el('button', { className: 'card-big' + (idx === big.i ? ' sel' : ''), ariaLabel: g.title, onclick: () => (idx === big.i ? bigPlay() : bigSelect(idx)) }, coverEl(g));
+    return b;
+  }));
+  if (!big.list.length) { $('#big-title').textContent = 'Sin juegos todavía'; $('#big-sub').textContent = 'Añade ROMs desde la biblioteca.'; return; }
+  bigSelect(Math.min(big.i, big.list.length - 1), false);
+}
+
+function bigSelect(i, scroll = true) {
+  if (!big.list.length) return;
+  big.i = (i + big.list.length) % big.list.length;
+  const cards = [...$('#big-track').children];
+  cards.forEach((c, k) => c.classList.toggle('sel', k === big.i));
+  const g = big.list[big.i];
+  $('#big-title').textContent = (g.favorite ? '★ ' : '') + g.title;
+  $('#big-sub').textContent = SYSTEMS[g.system].name + (g.system === 'melonx' ? ' · abre MeloNX' : '');
+  if (scroll) cards[big.i]?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+}
+
+function bigPlay() { const g = big.list[big.i]; if (g) play(g.id); }
+async function bigFav() { const g = big.list[big.i]; if (!g) return; g.favorite = !g.favorite; await putGame(g); bigSelect(big.i, false); }
+
+function openBig() {
+  big.open = true; big.i = 0;
+  bigEl().hidden = false;
+  bigRender();
+  const tick = () => { $('#big-clock').textContent = new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }); };
+  tick(); big.clock = setInterval(tick, 20000);
+  big.raf = requestAnimationFrame(bigPoll);
+  navigator.vibrate?.(8);
+}
+function closeBig() { big.open = false; bigEl().hidden = true; clearInterval(big.clock); cancelAnimationFrame(big.raf); refresh(); }
+
+/** Mando: cruceta/stick = mover, A = jugar, Y = favorito, B = salir. Con repetición al mantener. */
+let padPrev = {};
+function bigPoll(t) {
+  if (!big.open) return;
+  big.raf = requestAnimationFrame(bigPoll);
+  if (playing) return; // el juego tiene el mando
+  const pad = [...(navigator.getGamepads?.() || [])].find(Boolean);
+  if (!pad) return;
+  const b = (k) => !!pad.buttons[k]?.pressed;
+  const ax = pad.axes[0] || 0;
+  const dir = b(15) || ax > 0.6 ? 1 : b(14) || ax < -0.6 ? -1 : 0;
+  if (dir && t - big.last > (padPrev.dir === dir ? 220 : 380)) { bigSelect(big.i + dir); big.last = t; }
+  if (!dir) big.last = 0;
+  if (b(0) && !padPrev.a) bigPlay();
+  if (b(3) && !padPrev.y) bigFav();
+  if (b(1) && !padPrev.b) closeBig();
+  padPrev = { dir, a: b(0), y: b(3), b: b(1) };
+}
+
+addEventListener('keydown', (e) => {
+  if (!big.open || playing) return;
+  if (e.key === 'ArrowRight') bigSelect(big.i + 1);
+  else if (e.key === 'ArrowLeft') bigSelect(big.i - 1);
+  else if (e.key === 'Enter') bigPlay();
+  else if (e.key.toLowerCase() === 'y') bigFav();
+  else if (e.key === 'Escape') closeBig();
+});
+// al deslizar con el dedo, selecciona la carátula centrada
+$('#big-track').addEventListener('scroll', () => {
+  clearTimeout(big.st);
+  big.st = setTimeout(() => {
+    const t = $('#big-track'), mid = t.scrollLeft + t.clientWidth / 2;
+    const idx = [...t.children].findIndex((c) => Math.abs(c.offsetLeft + c.offsetWidth / 2 - mid) < c.offsetWidth / 2);
+    if (idx >= 0 && idx !== big.i) bigSelect(idx, false);
+  }, 90);
+}, { passive: true });
+$('#big-open').onclick = openBig;
+$('#big-close').onclick = closeBig;
 
 document.addEventListener('visibilitychange', () => {
   if (!playing) return;

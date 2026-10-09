@@ -19,6 +19,9 @@
 <header class="top">
   <h1 id="title">Biblioteca</h1>
   <div class="top-actions">
+    <button id="big-open" class="icon-btn" aria-label="Modo consola">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M8 19v2M16 19v2M7 10h3M8.5 8.5v3"/><circle cx="16" cy="10" r=".7"/><circle cx="18" cy="12" r=".7"/></svg>
+    </button>
     <button id="search-toggle" class="icon-btn" aria-label="Buscar" aria-expanded="false">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
     </button>
@@ -153,6 +156,13 @@
 <dialog id="picker" class="sheet"></dialog>
 <dialog id="help" class="sheet"></dialog>
 <div id="toast" role="status" aria-live="polite"></div>
+
+<div id="big" hidden role="dialog" aria-label="Modo consola">
+  <header><span id="big-clock"></span><button id="big-close" class="icon-btn" aria-label="Salir del modo consola">✕</button></header>
+  <div id="big-track" tabindex="0"></div>
+  <div id="big-info"><h2 id="big-title"></h2><p id="big-sub"></p></div>
+  <footer><span><kbd>A</kbd> Jugar</span><span><kbd>Y</kbd> Favorito</span><span><kbd>B</kbd> Salir</span></footer>
+</div>
 
 <div id="player" hidden>
   <iframe id="frame" title="Juego" allow="gamepad; fullscreen; autoplay"></iframe>
