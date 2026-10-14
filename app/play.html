@@ -16,6 +16,7 @@
 <script type="module">
 import { getGame, putGame } from './db.js';
 import { SYSTEMS, extOf } from './systems.js';
+import { t, getLang } from './i18n.js';
 
 // La app no hace llamadas externas: se bloquea la comprobación de versiones de EmulatorJS.
 const realFetch = window.fetch.bind(window);
@@ -27,8 +28,8 @@ const id = new URLSearchParams(location.search).get('id');
 const g = id && await getGame(id);
 let started = false;
 
-if (!g) fail('No se encontró el juego en la biblioteca.');
-else if (!SYSTEMS[g.system]?.ejs) fail('Este sistema no usa EmulatorJS.');
+if (!g) fail(t('player.noGame'));
+else if (!SYSTEMS[g.system]?.ejs) fail(t('player.noEjs'));
 else {
   const file = new File([g.blob], 'game.' + extOf(g.filename), { type: 'application/octet-stream' });
   Object.assign(window, {
@@ -38,7 +39,7 @@ else {
     EJS_gameName: g.id,            // clave de los estados guardados y partidas
     EJS_gameID: g.id,
     EJS_pathtodata: 'vendor/ejs/',
-    EJS_language: navigator.language?.startsWith('es') ? 'es-ES' : 'en-US',
+    EJS_language: getLang() === 'es' ? 'es-ES' : 'en-US',
     EJS_startOnLoaded: true,
     EJS_threads: false,
     EJS_backgroundColor: '#000',
@@ -47,7 +48,7 @@ else {
   });
   const s = document.createElement('script');
   s.src = 'vendor/ejs/loader.js';
-  s.onerror = () => fail('Faltan los núcleos de emulación. Ejecuta `npm run vendor` en app/.');
+  s.onerror = () => fail(t('player.noCores'));
   document.body.appendChild(s);
 }
 

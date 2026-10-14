@@ -1,7 +1,7 @@
 {
   "name": "Nexus",
   "short_name": "Nexus",
-  "description": "Biblioteca de emuladores retro con soporte para Switch (homebrew y juego remoto)",
+  "description": "Retro emulator library with a launcher for MeloNX (Switch on iPhone)",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
@@ -33,7 +33,7 @@
     }
   ],
   "id": "./",
-  "lang": "es",
+  "lang": "en",
   "categories": [
     "games",
     "entertainment"

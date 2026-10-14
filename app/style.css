@@ -139,3 +139,4 @@ dialog.sheet[open] { animation: up .2s ease; }
 #big-info p { margin: 4px 0 0; opacity: .7; font-size: 14px; }
 #big footer { display: flex; justify-content: center; gap: 22px; padding: 12px 16px 18px; font-size: 14px; opacity: .85; }
 #big kbd { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #ffffff26; font: 700 12px system-ui; margin-right: 6px; }
+[hidden] { display: none !important; }
