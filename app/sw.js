@@ -1,6 +1,6 @@
 // Service worker: guarda la app (y los núcleos al usarlos) para jugar sin conexión.
-const CACHE = 'nexus-v3';
-const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'db.js', 'systems.js', 'nx.js', 'play.html', 'manifest.webmanifest',
+const CACHE = 'nexus-v4';
+const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'db.js', 'systems.js', 'i18n.js', 'nx.js', 'play.html', 'manifest.webmanifest',
   'emu/nxemu.wasm', 'emu/demo.nro', 'icons/icon.svg', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {

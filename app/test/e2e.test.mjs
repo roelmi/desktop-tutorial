@@ -34,17 +34,18 @@ after(async () => { await browser?.close(); srv?.close(); });
 
 test('la app carga y muestra la biblioteca vacía', async () => {
   await page.click('#help .btn.primary'); // guía de bienvenida de la primera vez
-  assert.equal((await page.textContent('#title')).trim(), 'Biblioteca');
+  assert.equal((await page.textContent('#title')).trim(), 'Library'); // inglés por defecto
+  assert.equal(await page.evaluate(() => document.documentElement.lang), 'en');
   assert.equal(await page.isVisible('#empty'), true);
 });
 
 test('Switch: el núcleo nxemu (WebAssembly) ejecuta el homebrew de demo', async () => {
   await page.click('.tabbar button[data-tab=switch], nav button[data-tab=switch]');
   await page.click('#run-demo');
-  await page.waitForFunction(() => document.querySelector('#console').textContent.includes('código'));
+  await page.waitForFunction(() => document.querySelector('#console').textContent.includes('code'));
   const out = await page.textContent('#console');
   assert.match(out, /Hola, Switch!/);
-  assert.match(out, /código 42/);
+  assert.match(out, /code 42/);
 });
 
 test('importa una ROM, la lista y la arranca con el núcleo retro', async () => {
@@ -120,6 +121,22 @@ test('modo consola: carrusel, navegación con teclado y salida', async () => {
   assert.notEqual(first, second);
   await page.keyboard.press('Escape');
   assert.equal(await page.isHidden('#big'), true);
+});
+
+test('idioma: inglés por defecto, cambia a español y se recuerda', async () => {
+  await page.click('nav button[data-tab=settings]');
+  assert.equal(await page.inputValue('#set-lang'), 'en');
+  assert.match(await page.textContent('#tab-settings'), /Appearance/);
+  await page.selectOption('#set-lang', 'es');
+  assert.match(await page.textContent('#tab-settings'), /Apariencia/);
+  assert.equal(await page.evaluate(() => document.documentElement.lang), 'es');
+  await page.click('nav button[data-tab=library]');
+  assert.equal((await page.textContent('#title')).trim(), 'Biblioteca');
+  await page.reload();
+  assert.equal((await page.textContent('#title')).trim(), 'Biblioteca');
+  await page.click('nav button[data-tab=settings]');
+  await page.selectOption('#set-lang', 'en');
+  assert.match(await page.textContent('#tab-settings'), /Appearance/);
 });
 
 test('sin errores de JavaScript en la página principal', () => {

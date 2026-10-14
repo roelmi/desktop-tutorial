@@ -1,6 +1,7 @@
 import { listGames, putGame, deleteGame, newId } from './db.js';
 import { SYSTEMS, SWITCH_UNSUPPORTED_EXT, detect, extOf, titleOf, initialsOf } from './systems.js';
 import { runNro } from './nx.js';
+import { t, tn, getLang, setLang, applyStatic } from './i18n.js';
 
 /* ---------------------------------------------------------------- utilidades */
 const $ = (s) => document.querySelector(s);
@@ -36,14 +37,15 @@ function applyTheme() {
 }
 
 /* ------------------------------------------------------------------ pestañas */
-const TITLES = { library: 'Biblioteca', switch: 'Switch', settings: 'Ajustes' };
+let currentTab = 'library';
 function showTab(name) {
+  currentTab = name;
   document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t.id === `tab-${name}`));
   document.querySelectorAll('.tabs button').forEach((b) => {
     b.classList.toggle('active', b.dataset.tab === name);
     b.setAttribute('aria-current', b.dataset.tab === name ? 'page' : 'false');
   });
-  $('#title').textContent = TITLES[name];
+  $('#title').textContent = t(`tab.${name}`);
   $('#add').hidden = $('#search-toggle').hidden = $('#big-open').hidden = name !== 'library';
   if (name === 'settings') updateStorage();
   scrollTo(0, 0);
@@ -59,7 +61,7 @@ let urls = [];
 const byRecent = (a, b) => (b.lastPlayed || 0) - (a.lastPlayed || 0) || b.added - a.added;
 const SORTS = {
   recent: byRecent,
-  name: (a, b) => a.title.localeCompare(b.title, 'es', { sensitivity: 'base' }),
+  name: (a, b) => a.title.localeCompare(b.title, getLang(), { sensitivity: 'base' }),
   added: (a, b) => b.added - a.added,
 };
 
@@ -80,18 +82,18 @@ function coverEl(g) {
     c.append(initialsOf(g.title));
   }
   c.append(el('span', { className: 'badge', textContent: sys.short }));
-  if (g.favorite) c.append(el('span', { className: 'fav', textContent: '★', ariaLabel: 'Favorito' }));
+  if (g.favorite) c.append(el('span', { className: 'fav', textContent: '★', ariaLabel: t('a11y.fav') }));
   return c;
 }
 
 function cell(g) {
-  const open = el('button', { className: 'game', ariaLabel: `Jugar a ${g.title}`, onclick: () => play(g.id) }, coverEl(g), el('b', { textContent: g.title }));
+  const open = el('button', { className: 'game', ariaLabel: t('a11y.play', { title: g.title }), onclick: () => play(g.id) }, coverEl(g), el('b', { textContent: g.title }));
   // pulsación larga = opciones (como en el resto de apps de iOS)
   let timer;
   open.addEventListener('touchstart', () => { timer = setTimeout(() => { timer = null; navigator.vibrate?.(10); openSheet(g); }, 520); }, { passive: true });
   ['touchend', 'touchmove', 'touchcancel'].forEach((ev) => open.addEventListener(ev, () => { clearTimeout(timer); }, { passive: true }));
   open.addEventListener('contextmenu', (e) => { e.preventDefault(); openSheet(g); });
-  const more = el('button', { className: 'more', textContent: '⋯', ariaLabel: `Opciones de ${g.title}`, onclick: () => openSheet(g) });
+  const more = el('button', { className: 'more', textContent: '⋯', ariaLabel: t('a11y.options', { title: g.title }), onclick: () => openSheet(g) });
   return el('div', { className: 'cell' }, open, more);
 }
 
@@ -110,7 +112,7 @@ function render() {
   if (filter !== 'all' && filter !== 'fav' && !used.includes(filter)) filter = 'all';
 
   $('#chips').replaceChildren(
-    ...[['all', 'Todos'], ...(games.some((g) => g.favorite) ? [['fav', '★ Favoritos']] : []), ...used.map((k) => [k, SYSTEMS[k].name])].map(([k, label]) =>
+    ...[['all', t('chip.all')], ...(games.some((g) => g.favorite) ? [['fav', t('chip.fav')]] : []), ...used.map((k) => [k, SYSTEMS[k].name])].map(([k, label]) =>
       el('button', { className: 'chip' + (filter === k ? ' active' : ''), textContent: label, role: 'tab', ariaSelected: String(filter === k), onclick: () => { filter = k; render(); } }),
     ),
   );
@@ -122,20 +124,20 @@ function render() {
   const lib = $('#library');
   lib.replaceChildren();
   if (games.length && !matches.length) {
-    lib.append(el('p', { className: 'empty', textContent: q ? `Sin resultados para «${query}».` : 'No hay juegos en este filtro.' }));
+    lib.append(el('p', { className: 'empty', textContent: q ? t('lib.noResults', { q: query }) : t('lib.noFilter') }));
     return;
   }
   const browsing = !q && filter === 'all';
   if (browsing) {
     const recent = games.filter((g) => g.lastPlayed).sort(byRecent).slice(0, 8);
-    if (recent.length) lib.append(section('Seguir jugando', recent, { scroll: true }));
+    if (recent.length) lib.append(section(t('lib.continue'), recent, { scroll: true }));
     const favs = games.filter((g) => g.favorite).sort(sorter);
-    if (favs.length) lib.append(section('Favoritos', favs, { scroll: true }));
+    if (favs.length) lib.append(section(t('lib.favorites'), favs, { scroll: true }));
   }
   if (cfg.group && browsing) {
     for (const k of used) lib.append(section(SYSTEMS[k].name, matches.filter((g) => g.system === k).sort(sorter), { count: true }));
   } else {
-    lib.append(section(browsing ? 'Todos los juegos' : 'Resultados', matches.sort(sorter), { count: true }));
+    lib.append(section(browsing ? t('lib.all') : t('lib.results'), matches.sort(sorter), { count: true }));
   }
 }
 
@@ -156,17 +158,17 @@ function openSheet(g) {
   const d = $('#sheet');
   const sys = SYSTEMS[g.system];
   const close = () => d.close();
-  const head = el('div', { className: 'sheet-head' }, coverEl(g), el('div', {}, el('h2', { textContent: g.title }), el('div', { className: 'sub', textContent: `${sys.name}${g.system === 'melonx' ? ' · atajo' : ' · ' + mb(g.size) + ' MB'}${g.lastPlayed ? ' · jugado ' + new Date(g.lastPlayed).toLocaleDateString('es') : ''}` })));
+  const head = el('div', { className: 'sheet-head' }, coverEl(g), el('div', {}, el('h2', { textContent: g.title }), el('div', { className: 'sub', textContent: `${sys.name}${g.system === 'melonx' ? ' · ' + t('sheet.shortcut') : ' · ' + mb(g.size) + ' MB'}${g.lastPlayed ? ' · ' + t('sheet.played', { date: new Date(g.lastPlayed).toLocaleDateString(getLang()) }) : ''}` })));
   d.replaceChildren(
     head,
     el('div', { className: 'list' },
-      sheetButton('▶  Jugar', () => { close(); play(g.id); }, 'primary'),
-      sheetButton(g.favorite ? '☆  Quitar de favoritos' : '★  Añadir a favoritos', async () => { g.favorite = !g.favorite; await putGame(g); close(); refresh(); }),
-      sheetButton('✎  Renombrar', async () => { const t = prompt('Nuevo nombre', g.title); if (t?.trim()) { g.title = t.trim(); await putGame(g); close(); refresh(); } }),
-      sheetButton('🖼  Elegir carátula…', () => { close(); pickCover(g); }),
-      ...(g.cover ? [sheetButton('Quitar carátula', async () => { delete g.cover; g.coverCustom = false; await putGame(g); close(); refresh(); })] : []),
-      sheetButton('🗑  Eliminar del dispositivo', async () => { if (confirm(g.system === 'melonx' ? `¿Quitar el atajo «${g.title}»? (el juego en MeloNX no se toca)` : `¿Eliminar «${g.title}» y sus partidas guardadas?`)) { await deleteGame(g.id); close(); refresh(); } }, 'danger'),
-      sheetButton('Cerrar', close),
+      sheetButton(t('sheet.play'), () => { close(); play(g.id); }, 'primary'),
+      sheetButton(g.favorite ? t('sheet.unfav') : t('sheet.fav'), async () => { g.favorite = !g.favorite; await putGame(g); close(); refresh(); }),
+      sheetButton(t('sheet.rename'), async () => { const nn = prompt(t('prompt.rename'), g.title); if (nn?.trim()) { g.title = nn.trim(); await putGame(g); close(); refresh(); } }),
+      sheetButton(t('sheet.cover'), () => { close(); pickCover(g); }),
+      ...(g.cover ? [sheetButton(t('sheet.removeCover'), async () => { delete g.cover; g.coverCustom = false; await putGame(g); close(); refresh(); })] : []),
+      sheetButton(t('sheet.delete'), async () => { if (confirm(g.system === 'melonx' ? t('confirm.removeShortcut', { title: g.title }) : t('confirm.deleteGame', { title: g.title }))) { await deleteGame(g.id); close(); refresh(); } }, 'danger'),
+      sheetButton(t('sheet.close'), close),
     ),
   );
   d.showModal();
@@ -197,9 +199,9 @@ $('#file-cover').onchange = async (e) => {
     coverTarget.cover = await shrink(f);
     coverTarget.coverCustom = true;
     await putGame(coverTarget);
-    toast('Carátula actualizada');
+    toast(t('toast.coverUpdated'));
     refresh();
-  } catch { toast('No se pudo usar esa imagen'); }
+  } catch { toast(t('toast.coverFail')); }
   coverTarget = null;
 };
 
@@ -209,11 +211,11 @@ function askSystem(filename, choices) {
     const d = $('#picker');
     let chosen = null;
     d.replaceChildren(
-      el('h2', { textContent: 'Elige la consola' }),
+      el('h2', { textContent: t('picker.title') }),
       el('div', { className: 'sub', textContent: filename }),
       el('div', { className: 'list' },
         ...choices.map((k) => sheetButton(SYSTEMS[k].name, () => { chosen = k; d.close(); })),
-        sheetButton('Omitir este archivo', () => d.close()),
+        sheetButton(t('picker.skip'), () => d.close()),
       ),
     );
     d.addEventListener('close', () => resolve(chosen), { once: true });
@@ -225,17 +227,17 @@ async function importFiles(files) {
   let added = 0, dup = 0, skipped = 0;
   const total = files.length;
   for (const [i, f] of files.entries()) {
-    if (total > 1) toast(`Importando ${i + 1} de ${total}…`, 60000);
+    if (total > 1) toast(t('import.progress', { i: i + 1, n: total }), 60000);
     const ext = extOf(f.name);
     if (SWITCH_UNSUPPORTED_EXT.includes(ext)) {
-      toast('Los juegos de Switch (XCI/NSP) no se pueden ejecutar en Nexus. Mira la pestaña Switch.', 6000);
+      toast(t('import.switchUnsupported'), 6000);
       skipped++;
       continue;
     }
     const det = detect(f.name);
     let system = det?.system;
     if (det?.choices) system = await askSystem(f.name, det.choices);
-    if (!system) { if (!det) toast(`Formato no soportado: .${ext}`); skipped++; continue; }
+    if (!system) { if (!det) toast(t('import.badFormat', { ext })); skipped++; continue; }
     if (system === 'switch') { await runNroFile(f); showTab('switch'); continue; }
     if (games.some((g) => g.filename === f.name && g.size === f.size)) { dup++; continue; }
     try {
@@ -244,15 +246,15 @@ async function importFiles(files) {
       games.push(g);
       added++;
     } catch (e) {
-      toast(e?.name === 'QuotaExceededError' ? 'No hay espacio suficiente en el dispositivo' : 'No se pudo guardar el juego', 5000);
+      toast(e?.name === 'QuotaExceededError' ? t('import.noSpace') : t('import.saveFail'), 5000);
       skipped++;
     }
   }
   const parts = [];
-  if (added) parts.push(`${added} juego${added > 1 ? 's' : ''} añadido${added > 1 ? 's' : ''}`);
-  if (dup) parts.push(`${dup} ya estaba${dup > 1 ? 'n' : ''}`);
+  if (added) parts.push(tn('import.added', added));
+  if (dup) parts.push(tn('import.dup', dup));
   if (parts.length) toast(parts.join(' · '));
-  else if (!skipped) toast('Nada que importar');
+  else if (!skipped) toast(t('import.nothing'));
   await refresh();
 }
 
@@ -260,7 +262,7 @@ $('#add').onclick = $('#empty-add').onclick = () => $('#file').click();
 $('#file').onchange = (e) => { const f = [...e.target.files]; e.target.value = ''; importFiles(f); };
 addEventListener('dragover', (e) => e.preventDefault());
 addEventListener('drop', (e) => { e.preventDefault(); importFiles([...e.dataTransfer.files]); });
-$('#formats').textContent = Object.values(SYSTEMS).filter((s) => s.ejs).map((s) => `${s.name}: ${s.ext.map((x) => '.' + x).join(' ')}`).join(' · ') + ' · también .zip y .7z.';
+const renderFormats = () => { $('#formats').textContent = Object.values(SYSTEMS).filter((s) => s.ejs).map((s) => `${s.name}: ${s.ext.map((x) => '.' + x).join(' ')}`).join(' · ') + ' · ' + t('formats.extra'); };
 
 /* -------------------------------------------------------------------- jugar */
 let playing = null;
@@ -282,14 +284,14 @@ async function launchMeloNX(g) {
   g.lastPlayed = Date.now();
   await putGame(g);
   const q = g.titleId ? `id=${encodeURIComponent(g.titleId)}` : `name=${encodeURIComponent(g.title)}`;
-  toast('Abriendo MeloNX… (si no pasa nada, instálalo y ábrelo una vez)');
+  toast(t('melonx.opening'));
   location.href = `melonx://game?${q}`;
 }
 
 function addSwitchShortcut() {
-  const title = prompt('Nombre del juego tal como aparece en MeloNX');
+  const title = prompt(t('melonx.promptName'));
   if (!title?.trim()) return;
-  const titleId = (prompt('ID del título (opcional, 16 caracteres hexadecimales; déjalo vacío para buscar por nombre)') || '').trim();
+  const titleId = (prompt(t('melonx.promptId')) || '').trim();
   putGame({ id: newId(), title: title.trim(), filename: '', system: 'melonx', size: 0, added: Date.now(), titleId: titleId || undefined }).then(refresh);
 }
 $('#add-shortcut').onclick = addSwitchShortcut;
@@ -344,7 +346,7 @@ function bigRender() {
     const b = el('button', { className: 'card-big' + (idx === big.i ? ' sel' : ''), ariaLabel: g.title, onclick: () => (idx === big.i ? bigPlay() : bigSelect(idx)) }, coverEl(g));
     return b;
   }));
-  if (!big.list.length) { $('#big-title').textContent = 'Sin juegos todavía'; $('#big-sub').textContent = 'Añade ROMs desde la biblioteca.'; return; }
+  if (!big.list.length) { $('#big-title').textContent = t('big.empty'); $('#big-sub').textContent = t('big.emptySub'); return; }
   bigSelect(Math.min(big.i, big.list.length - 1), false);
 }
 
@@ -355,7 +357,7 @@ function bigSelect(i, scroll = true) {
   cards.forEach((c, k) => c.classList.toggle('sel', k === big.i));
   const g = big.list[big.i];
   $('#big-title').textContent = (g.favorite ? '★ ' : '') + g.title;
-  $('#big-sub').textContent = SYSTEMS[g.system].name + (g.system === 'melonx' ? ' · abre MeloNX' : '');
+  $('#big-sub').textContent = SYSTEMS[g.system].name + (g.system === 'melonx' ? ' · ' + t('melonx.opens') : '');
   if (scroll) cards[big.i]?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
 }
 
@@ -366,7 +368,7 @@ function openBig() {
   big.open = true; big.i = 0;
   bigEl().hidden = false;
   bigRender();
-  const tick = () => { $('#big-clock').textContent = new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }); };
+  const tick = () => { $('#big-clock').textContent = new Date().toLocaleTimeString(getLang(), { hour: '2-digit', minute: '2-digit' }); };
   tick(); big.clock = setInterval(tick, 20000);
   big.raf = requestAnimationFrame(bigPoll);
   navigator.vibrate?.(8);
@@ -424,35 +426,27 @@ document.addEventListener('visibilitychange', () => {
 });
 
 /* ------------------------------------------------------------- Switch (guía) */
-const CHECKLIST = [
-  'Mi iPhone es un iPhone 12 o posterior (recomendado: 15 Pro o superior).',
-  'Tengo un ordenador (Windows o Mac) para la primera instalación por sideload.',
-  'He instalado SideStore o AltStore desde su página oficial.',
-  'He instalado MeloNX desde su página oficial (no desde sitios que reempaquetan el IPA).',
-  'Sé activar el JIT (por ejemplo con StikDebug) cada vez que abro MeloNX.',
-  'Tengo las claves y el firmware de MI PROPIA Switch.',
-  'Tengo copias de MIS propios juegos.',
-];
+const CHECKLIST = [0, 1, 2, 3, 4, 5, 6];
 
 function renderChecklist() {
   const ul = $('#checklist');
   ul.replaceChildren(...CHECKLIST.map((text, i) => {
     const id = `chk${i}`;
     const box = el('input', { type: 'checkbox', id, checked: !!cfg.checklist[i], onchange: (e) => { cfg.checklist[i] = e.target.checked; saveCfg(); progress(); } });
-    return el('li', {}, box, el('label', { htmlFor: id, textContent: text }));
+    return el('li', {}, box, el('label', { htmlFor: id, textContent: t(`check.${text}`) }));
   }));
-  const progress = () => { $('#checklist-progress').textContent = `${CHECKLIST.filter((_, i) => cfg.checklist[i]).length} de ${CHECKLIST.length} pasos listos`; };
+  const progress = () => { $('#checklist-progress').textContent = t('switch.progress', { a: CHECKLIST.filter((_, i) => cfg.checklist[i]).length, b: CHECKLIST.length }); };
   progress();
 }
 
 const con = $('#console');
 const show = (t) => { con.hidden = false; con.textContent = t; };
 async function runNroBytes(bytes, name) {
-  show(`Ejecutando ${name}…`);
+  show(t('lab.running', { name }));
   try {
     const { code, output, error } = await runNro(bytes);
-    show(`${output}${error ? `\n[error] ${error}` : `\n[proceso terminó con código ${code}]`}`);
-  } catch (e) { show(`[error] ${e.message}`); }
+    show(`${output}${error ? '\n' + t('lab.error', { msg: error }) : '\n' + t('lab.exited', { code })}`);
+  } catch (e) { show(t('lab.error', { msg: e.message })); }
 }
 const runNroFile = async (f) => runNroBytes(new Uint8Array(await f.arrayBuffer()), f.name);
 $('#run-demo').onclick = async () => runNroBytes(new Uint8Array(await (await fetch('emu/demo.nro')).arrayBuffer()), 'demo.nro');
@@ -461,36 +455,39 @@ $('#file-nro').onchange = (e) => { if (e.target.files[0]) runNroFile(e.target.fi
 
 /* ------------------------------------------------------------------- ajustes */
 function bindSettings() {
-  const map = [['#set-theme', 'theme', 'value'], ['#set-sort', 'sort', 'value'], ['#set-group', 'group', 'checked'], ['#set-cover', 'snapshot', 'checked'], ['#set-wake', 'wake', 'checked'], ['#set-pause', 'pause', 'checked']];
+  const map = [['#set-theme', 'theme', 'value'], ['#set-lang', 'lang', 'value'], ['#set-sort', 'sort', 'value'], ['#set-group', 'group', 'checked'], ['#set-cover', 'snapshot', 'checked'], ['#set-wake', 'wake', 'checked'], ['#set-pause', 'pause', 'checked']];
   for (const [sel, key, prop] of map) {
     const e = $(sel);
-    e[prop] = cfg[key];
-    e.onchange = () => { cfg[key] = e[prop]; saveCfg(); if (key === 'theme') applyTheme(); render(); };
+    e[prop] = key === 'lang' ? getLang() : cfg[key];
+    e.onchange = () => {
+      if (key === 'lang') { setLang(e[prop]); retranslate(); return; }
+      cfg[key] = e[prop]; saveCfg(); if (key === 'theme') applyTheme(); render();
+    };
   }
 }
 
 async function updateStorage() {
   const total = games.reduce((s, g) => s + g.size, 0);
   let quota = '';
-  try { const e = await navigator.storage.estimate(); quota = ` · usado por Nexus (total): ${mb(e.usage)} de ${mb(e.quota)} MB`; } catch { /* sin API */ }
-  $('#usage').textContent = `${games.length} juego${games.length === 1 ? '' : 's'} · ${mb(total)} MB${quota}`;
+  try { const e = await navigator.storage.estimate(); quota = t('usage.quota', { a: mb(e.usage), b: mb(e.quota) }); } catch { /* sin API */ }
+  $('#usage').textContent = tn('usage.games', games.length, { mb: mb(total) }) + quota;
   let persisted = false;
   try { persisted = await navigator.storage.persisted(); } catch { /* sin API */ }
-  $('#persist-status').textContent = persisted ? '✓ Datos protegidos: el navegador no los borrará por falta de uso.' : 'Los datos aún no están protegidos contra borrado automático.';
+  $('#persist-status').textContent = persisted ? t('persist.yes') : t('persist.no');
   $('#persist').hidden = persisted;
 }
 
 $('#persist').onclick = async () => {
   let ok = false;
   try { ok = await navigator.storage.persist(); } catch { /* sin API */ }
-  toast(ok ? 'Datos protegidos' : 'Safari no lo concedió. Instala Nexus en la pantalla de inicio e inténtalo de nuevo.', 5000);
+  toast(ok ? t('toast.persistOk') : t('toast.persistNo'), 5000);
   updateStorage();
 };
 $('#clear-cache').onclick = async () => {
-  try { for (const k of await caches.keys()) await caches.delete(k); toast('Caché vaciada'); } catch { toast('No se pudo vaciar la caché'); }
+  try { for (const k of await caches.keys()) await caches.delete(k); toast(t('toast.cacheOk')); } catch { toast(t('toast.cacheFail')); }
 };
 $('#clear').onclick = async () => {
-  if (!confirm('¿Borrar TODOS los juegos de la biblioteca? No se puede deshacer.')) return;
+  if (!confirm(t('confirm.clear'))) return;
   for (const g of games) await deleteGame(g.id);
   await refresh();
   updateStorage();
@@ -499,25 +496,22 @@ $('#clear').onclick = async () => {
 /* mandos Bluetooth */
 const pads = new Set();
 function padStatus() {
-  $('#pad-status').textContent = pads.size ? `🎮 Mando conectado: ${[...pads].join(', ')}` : 'Mandos: ninguno conectado. Empareja uno por Bluetooth en Ajustes de iOS y pulsa un botón.';
+  $('#pad-status').textContent = pads.size ? t('pad.connected', { names: [...pads].join(', ') }) : t('pad.none');
 }
-addEventListener('gamepadconnected', (e) => { pads.add(e.gamepad.id.split('(')[0].trim()); padStatus(); toast('Mando conectado'); });
+addEventListener('gamepadconnected', (e) => { pads.add(e.gamepad.id.split('(')[0].trim()); padStatus(); toast(t('toast.padConnected')); });
 addEventListener('gamepaddisconnected', (e) => { pads.delete(e.gamepad.id.split('(')[0].trim()); padStatus(); });
 
 /* ------------------------------------------------------- guía de inicio y aviso */
 function openHelp() {
   const d = $('#help');
   d.replaceChildren(
-    el('h2', { textContent: 'Bienvenido a Nexus' }),
-    el('div', { className: 'sub', textContent: 'Tus consolas clásicas, en una sola app.' }),
+    el('h2', { textContent: t('help.title') }),
+    el('div', { className: 'sub', textContent: t('help.sub') }),
     el('ol', { className: 'steps' },
-      el('li', {}, el('b', { textContent: 'Instálala: ' }), 'en Safari pulsa Compartir y «Añadir a pantalla de inicio». Así se abre a pantalla completa y funciona sin conexión.'),
-      el('li', {}, el('b', { textContent: 'Añade tus juegos: ' }), 'pulsa ＋ y elige archivos de tus propios cartuchos o discos. Nexus no incluye ni descarga juegos.'),
-      el('li', {}, el('b', { textContent: 'Juega: ' }), 'toca un juego. Usa los controles táctiles o un mando Bluetooth. El menú del juego guarda y carga partidas.'),
-      el('li', {}, el('b', { textContent: 'Organiza: ' }), 'mantén pulsado un juego para marcarlo como favorito, cambiar su carátula o eliminarlo.'),
+      ...[1, 2, 3, 4].map((n) => el('li', {}, el('b', { textContent: t(`help.${n}.b`) }), t(`help.${n}.t`))),
     ),
-    el('p', { className: 'muted', textContent: 'Switch: Nexus no puede ejecutar juegos de Switch. La pestaña «Switch» te guía para usar MeloNX en tu iPhone.' }),
-    el('div', { className: 'list' }, sheetButton('Entendido', () => { cfg.onboarded = true; saveCfg(); d.close(); }, 'primary')),
+    el('p', { className: 'muted', textContent: t('help.switch') }),
+    el('div', { className: 'list' }, sheetButton(t('help.ok'), () => { cfg.onboarded = true; saveCfg(); d.close(); }, 'primary')),
   );
   d.showModal();
 }
@@ -530,11 +524,28 @@ function maybeInstallBanner() {
 }
 $('#install-close').onclick = () => { cfg.installDismissed = true; saveCfg(); $('#install').hidden = true; };
 
+/* -------------------------------------------------------------------- idioma */
+/** Vuelve a pintar todo el texto al cambiar de idioma. */
+function retranslate() {
+  applyStatic();
+  renderFormats();
+  renderChecklist();
+  padStatus();
+  showTab(currentTab);
+  if (big.open) bigRender();
+  if ($('#help').open) openHelp();
+  render();
+  updateStorage();
+}
+
 /* -------------------------------------------------------------------- arranque */
+applyStatic();
+renderFormats();
 applyTheme();
 matchMedia('(prefers-color-scheme: light)').addEventListener?.('change', applyTheme);
 bindSettings();
 renderChecklist();
+padStatus();
 showTab('library');
 maybeInstallBanner();
 refresh().then(() => { if (!cfg.onboarded && games.length === 0) setTimeout(openHelp, 400); });
