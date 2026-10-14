@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#0e0f13">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Nexus">
+<title>Nexus</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <h1 id="title">Biblioteca</h1>
+  <div class="top-actions">
+    <button id="big-open" class="icon-btn" aria-label="Modo consola">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M8 19v2M16 19v2M7 10h3M8.5 8.5v3"/><circle cx="16" cy="10" r=".7"/><circle cx="18" cy="12" r=".7"/></svg>
+    </button>
+    <button id="search-toggle" class="icon-btn" aria-label="Buscar" aria-expanded="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    </button>
+    <button id="add" class="icon-btn accent" aria-label="Añadir juegos">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+  </div>
+</header>
+
+<div id="install" class="banner" hidden>
+  <div><b>Instala Nexus</b><br>Pulsa <span class="share">Compartir</span> y luego <b>Añadir a pantalla de inicio</b> para usarlo como una app, a pantalla completa y sin conexión.</div>
+  <button id="install-close" class="icon-btn" aria-label="Cerrar">✕</button>
+</div>
+
+<main>
+  <section id="tab-library" class="tab active">
+    <div id="searchbar" class="searchbar" hidden>
+      <input id="search" type="search" placeholder="Buscar juegos" aria-label="Buscar juegos" autocomplete="off">
+    </div>
+    <div id="chips" class="chips" role="tablist" aria-label="Filtrar por consola"></div>
+    <div id="library"></div>
+    <div id="empty" class="empty" hidden>
+      <div class="empty-art" aria-hidden="true">🎮</div>
+      <h2>Tu biblioteca está vacía</h2>
+      <p>Añade archivos de juegos de <b>tus propios cartuchos o discos</b>. Nexus no incluye ni descarga juegos.</p>
+      <button id="empty-add" class="btn primary">Añadir juegos</button>
+      <details>
+        <summary>Formatos admitidos</summary>
+        <p id="formats"></p>
+      </details>
+    </div>
+  </section>
+
+  <section id="tab-switch" class="tab">
+    <div class="card hero">
+      <h2>Nintendo Switch</h2>
+      <p>Nexus es una app web y <b>no puede ejecutar juegos de Switch</b>: eso exige compilación JIT y código nativo que el navegador del iPhone no permite.
+         En iPhone existe <b>MeloNX</b> (basado en Ryujinx), que se instala por separado. Esta lista te ayuda a prepararlo.</p>
+      <div class="row">
+        <a class="btn primary" href="https://melonx.org" target="_blank" rel="noopener">Web de MeloNX</a>
+        <a class="btn" href="https://codeberg.org/Altrew/MeloNX" target="_blank" rel="noopener">Código fuente</a>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Tus juegos de Switch en Nexus</h2>
+      <p>Crea un atajo por cada juego que ya tengas en MeloNX: aparecerá en tu biblioteca junto a los demás y, al tocarlo, Nexus abre MeloNX y lo lanza.
+         Nexus no guarda ni copia el juego; solo recuerda su nombre. MeloNX activa el JIT según tu configuración.</p>
+      <div class="row">
+        <button class="btn primary" id="add-shortcut">Añadir atajo de juego</button>
+        <button class="btn" id="open-melonx">Abrir MeloNX</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Lista de preparación</h2>
+      <ul id="checklist" class="checklist"></ul>
+      <p class="muted" id="checklist-progress"></p>
+    </div>
+    <div class="card">
+      <h2>Qué emulador usar en cada dispositivo</h2>
+      <table class="table">
+        <tr><th>Dispositivo</th><th>Opción</th></tr>
+        <tr><td>iPhone / iPad</td><td>MeloNX (sideload + JIT)</td></tr>
+        <tr><td>Android (Snapdragon reciente)</td><td>Eden</td></tr>
+        <tr><td>PC Windows / Linux</td><td>Eden o Ryubing</td></tr>
+        <tr><td>Mac</td><td>Eden o Ryubing</td></tr>
+      </table>
+      <p class="muted">Ryujinx original ya no se mantiene; Ryubing es su continuación. Todos exigen claves y firmware de <b>tu propia consola</b> y copias de tus juegos.</p>
+    </div>
+    <div class="card">
+      <h2>Laboratorio: <span class="mono">nxemu</span> <span class="tag">experimental</span></h2>
+      <p>Núcleo propio (CPU ARM64 + kernel de alto nivel en WebAssembly) que ejecuta programas <b>homebrew</b> sencillos <code>.nro</code>. No ejecuta juegos comerciales.</p>
+      <div class="row">
+        <button id="run-demo" class="btn">▶ Ejecutar demo</button>
+        <button id="run-nro" class="btn">Abrir .nro…</button>
+      </div>
+      <pre id="console" class="console" hidden></pre>
+    </div>
+  </section>
+
+  <section id="tab-settings" class="tab">
+    <div class="card">
+      <h2>Apariencia</h2>
+      <label class="setting"><span>Tema</span>
+        <select id="set-theme"><option value="auto">Automático</option><option value="dark">Oscuro</option><option value="light">Claro</option></select></label>
+      <label class="setting"><span>Agrupar por consola</span><input id="set-group" type="checkbox" class="switch"></label>
+      <label class="setting"><span>Ordenar por</span>
+        <select id="set-sort"><option value="recent">Más recientes</option><option value="name">Nombre</option><option value="added">Fecha de alta</option></select></label>
+    </div>
+    <div class="card">
+      <h2>Al jugar</h2>
+      <label class="setting"><span>Carátula con la última imagen del juego</span><input id="set-cover" type="checkbox" class="switch"></label>
+      <label class="setting"><span>Mantener la pantalla encendida</span><input id="set-wake" type="checkbox" class="switch"></label>
+      <label class="setting"><span>Pausar al salir de la app</span><input id="set-pause" type="checkbox" class="switch"></label>
+      <p class="muted" id="pad-status">Mandos: ninguno conectado. Empareja uno por Bluetooth en Ajustes de iOS y pulsa un botón.</p>
+    </div>
+    <div class="card">
+      <h2>Almacenamiento</h2>
+      <p id="usage">Calculando…</p>
+      <p class="muted" id="persist-status"></p>
+      <div class="row">
+        <button id="persist" class="btn">Proteger mis datos</button>
+        <button id="clear-cache" class="btn">Vaciar caché de la app</button>
+        <button id="clear" class="btn danger">Borrar toda la biblioteca</button>
+      </div>
+      <p class="muted">Safari puede borrar los datos de un sitio que no se usa en semanas. Instala Nexus en la pantalla de inicio y pulsa «Proteger mis datos» para evitarlo.</p>
+    </div>
+    <div class="card">
+      <h2>Acerca de</h2>
+      <p>Nexus guarda tus juegos y partidas solo en este dispositivo. Los núcleos retro son <a href="https://emulatorjs.org" target="_blank" rel="noopener">EmulatorJS</a> / libretro (GPL, LGPL y otras).
+         No incluye juegos, BIOS, claves ni firmware: usa únicamente copias de tu propiedad.</p>
+      <button id="show-help" class="btn">Ver la guía de inicio</button>
+    </div>
+  </section>
+</main>
+
+<nav class="tabs" aria-label="Secciones">
+  <button data-tab="library" class="active" aria-label="Biblioteca">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="10" rx="5"/><path d="M8 10v4M6 12h4"/><circle cx="15.5" cy="11" r=".6"/><circle cx="17.5" cy="13" r=".6"/></svg><span>Biblioteca</span>
+  </button>
+  <button data-tab="switch" aria-label="Switch">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M9 5v14M15 5v14"/></svg><span>Switch</span>
+  </button>
+  <button data-tab="settings" aria-label="Ajustes">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg><span>Ajustes</span>
+  </button>
+</nav>
+
+<input id="file" type="file" multiple hidden>
+<input id="file-nro" type="file" accept=".nro" hidden>
+<input id="file-cover" type="file" accept="image/*" hidden>
+<dialog id="sheet" class="sheet"></dialog>
+<dialog id="picker" class="sheet"></dialog>
+<dialog id="help" class="sheet"></dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<div id="big" hidden role="dialog" aria-label="Modo consola">
+  <header><span id="big-clock"></span><button id="big-close" class="icon-btn" aria-label="Salir del modo consola">✕</button></header>
+  <div id="big-track" tabindex="0"></div>
+  <div id="big-info"><h2 id="big-title"></h2><p id="big-sub"></p></div>
+  <footer><span><kbd>A</kbd> Jugar</span><span><kbd>Y</kbd> Favorito</span><span><kbd>B</kbd> Salir</span></footer>
+</div>
+
+<div id="player" hidden>
+  <iframe id="frame" title="Juego" allow="gamepad; fullscreen; autoplay"></iframe>
+  <button id="exit" aria-label="Salir del juego"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

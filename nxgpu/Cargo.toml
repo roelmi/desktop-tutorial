@@ -1,0 +1,16 @@
+[package]
+name = "nxgpu"
+version = "0.1.0"
+edition = "2021"
+description = "Base educativa de una GPU emulada: procesador de comandos, IR de shaders, traducción a SPIR-V/MSL y rasterizador por software"
+
+[features]
+default = ["translate"]
+# Traducción de shaders a SPIR-V (Vulkan) y MSL (Metal) validada con naga.
+translate = ["dep:naga"]
+
+[dependencies]
+naga = { version = "*", optional = true, features = ["wgsl-in", "spv-in", "spv-out", "msl-out"] }
+
+[profile.test]
+opt-level = 3
