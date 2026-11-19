@@ -5,9 +5,19 @@
 <div id="login" class="box" style="margin-top:14px"><label>Dashboard password</label><div class="row"><input id="pw" type="password" autocomplete="current-password"><button id="go">Log in</button></div></div>
 <div id="app" hidden>
 <div id="msg"></div>
-<div class="tabs" id="tabs"><button data-t="queue" class="on">Queue</button><button data-t="cards">Cards</button><button data-t="settings">Settings</button><button data-t="viewers">Viewers</button><button data-t="tools">Tools</button></div>
+<div class="tabs" id="tabs"><button data-t="queue" class="on">Queue</button><button data-t="games">Game</button><button data-t="cards">Cards</button><button data-t="settings">Settings</button><button data-t="viewers">Viewers</button><button data-t="tools">Tools</button></div>
 
 <div id="queue"></div>
+
+<div id="games" hidden>
+ <div class="box"><h2 style="margin-top:0">What game are you playing?</h2>
+  <p class="sub">Tell CardStream the game and it builds a themed card set with original artwork, then switches your packs to it. Sets you already made are just re-activated.</p>
+  <div class="row"><input id="game_name" placeholder="Game name, e.g. Battlefield 6" maxlength="40"><button id="gameGo">Switch game</button></div>
+  <div class="row" style="margin-top:8px"><button class="ghost" data-preset="GTA 6">GTA 6</button><button class="ghost" data-preset="Battlefield 6">Battlefield 6</button><button class="ghost" data-preset="Call of Duty">Call of Duty</button></div>
+  <label><input type="checkbox" id="game_regen" style="width:auto"> Regenerate the set even if it exists (replaces that game's cards)</label>
+  <div id="jobBox" class="sub" style="margin-top:10px"></div><div class="bar" id="jobBar" hidden><i id="jobFill" style="width:0"></i></div></div>
+ <div class="box"><h2 style="margin-top:0">How the art is made</h2><div id="provInfo" class="sub"></div></div>
+</div>
 
 <div id="cards" hidden>
  <div class="box"><h2 style="margin-top:0" id="formTitle">Add a card</h2>
@@ -57,9 +67,18 @@ function draw(){
  const opts=state.cards.map(c=>`<option value="${esc(c.id)}">${esc(c.emoji)} ${esc(c.name)}</option>`).join('');
  for(const id of ['g_card','t_card']){const cur=$(id).value;$(id).innerHTML=(id==='g_card'?'<option value="">(no card)</option>':'')+opts;$(id).value=cur}
  $('userTable').innerHTML='<tr><th>Viewer</th><th>Coins</th><th>Cards</th><th>Packs</th><th>Played</th></tr>'+state.users.map(u=>`<tr><td>${esc(u.name)} <span class="pill">${esc(u.platform)}</span></td><td>${u.coins}</td><td>${u.cards}</td><td>${u.opened}</td><td>${u.played}</td></tr>`).join('');
+ drawGame();
  $('ovUrl').textContent=location.origin+'/overlay';$('ovPrev').href='/overlay?preview';
  if(!$('settingsForm').dataset.ready||document.activeElement.closest?.('#settingsForm')==null&&!$('settingsForm').dataset.dirty)settingsDraw();
 }
+function drawGame(){const j=state.job||{},p=state.providers||{};
+ const now=state.settings.currentGame?`Now playing: <b>${esc(state.settings.currentGame)}</b>. `:'';
+ $('jobBox').innerHTML=now+(j.status==='running'?`⏳ ${esc(j.note)}`:j.status==='done'?`✅ ${esc(j.note)}`:j.status==='error'?`❌ ${esc(j.note)}`:'')+(j.errors?.length?`<br>${j.errors.map(esc).join('<br>')}`:'');
+ $('jobBar').hidden=j.status!=='running';$('jobFill').style.width=(j.total?j.done/j.total*100:0)+'%';
+ $('provInfo').innerHTML=`<b>Art:</b> ${state.settings.artMode==='ai'&&p.ai?'AI-generated images (OpenAI key found)':'original illustrations drawn locally, free, no key'}${state.settings.artMode==='ai'&&!p.ai?' <span style="color:var(--err)">(AI mode is selected but no OPENAI_API_KEY is set, so local art is used)</span>':''}<br>
+ <b>Card text:</b> ${p.llm?'written by Claude for any game (ANTHROPIC_API_KEY found)':'built-in ideas (GTA, Battlefield, Call of Duty and a generic set). Add ANTHROPIC_API_KEY to write cards for any game.'}<br>
+ <b>Auto-detect game from Twitch:</b> ${p.twitchGame?'configured':'not configured (needs TWITCH_CHANNEL, TWITCH_CLIENT_ID, TWITCH_CLIENT_SECRET)'}<br>
+ <span>Art is original and game-inspired. Official logos, characters and screenshots are never used.</span>`}
 function settingsDraw(){const s=state.settings,n=(k,l,h)=>`<div><label>${l}</label><input data-s="${k}" type="number" value="${s[k]}">${h?`<div class="sub">${h}</div>`:''}</div>`;
  const cols=[...new Set(state.cards.map(c=>c.collection))];
  $('settingsForm').dataset.ready=1;$('settingsForm').innerHTML=`<div class="row"><div><label>Stream / channel name</label><input data-s="streamerName" value="${esc(s.streamerName)}"></div>
@@ -67,16 +86,20 @@ function settingsDraw(){const s=state.settings,n=(k,l,h)=>`<div><label>${l}</lab
  <label><input type="checkbox" data-s="autoAccept" style="width:auto" ${s.autoAccept?'checked':''}> Auto-accept played cards (otherwise you approve each one in the queue)</label>
  <div class="row">${n('packCost','Pack cost (coins)')}${n('packSize','Cards per pack')}${n('startCoins','Coins for a new chatter')}${n('guestCoins','Coins for web guests')}</div>
  <div class="row">${n('chatCoins','Coins per chat message')}${n('chatCooldownSec','Chat reward cooldown (s)')}${n('dailyCoins','Daily claim coins')}${n('playCooldownSec','Per-viewer play cooldown (s)')}</div>
+ <div class="row">${n('cardsPerGame','Cards per game set (4-16)')}<div><label>Art style for new sets</label><select data-s="artMode"><option value="local" ${s.artMode!=='ai'?'selected':''}>Local original art (free)</option><option value="ai" ${s.artMode==='ai'?'selected':''}>AI images (needs OPENAI_API_KEY, costs money per image)</option></select></div></div>
+ <label><input type="checkbox" data-s="autoGame" style="width:auto" ${s.autoGame?'checked':''}> Switch games automatically when my Twitch category changes</label>
  <div class="row">${n('goalTarget','Community goal (packs)')}<div><label>Goal reward rarity</label><select data-s="goalReward">${['common','rare','epic','legendary'].map(r=>`<option ${s.goalReward===r?'selected':''}>${r}</option>`).join('')}</select></div></div>
  <div class="row" style="margin-top:10px"><button id="saveSettings">Save settings</button></div>`}
 $('settingsForm').addEventListener('input',()=>{$('settingsForm').dataset.dirty=1});
 document.addEventListener('click',async e=>{
  const t=e.target;
- if(t.closest('#tabs button')){const b=t.closest('#tabs button');document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));for(const k of['queue','cards','settings','viewers','tools'])$(k).hidden=k!==b.dataset.t;return}
+ if(t.closest('#tabs button')){const b=t.closest('#tabs button');document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));for(const k of['queue','games','cards','settings','viewers','tools'])$(k).hidden=k!==b.dataset.t;return}
  if(t.dataset.q){const r=await api(`/api/admin/queue/${t.dataset.id}/${t.dataset.q}`,{});if(!r.ok)say(r.error,'err');load();return}
  if(t.id==='accAll'){await api('/api/admin/accept-all',{});load();return}
  if(t.dataset.edit){const c=state.cards.find(x=>x.id===t.dataset.edit);$('c_id').value=c.id;for(const f of fields)$('c_'+f).value=c[f]??'';$('c_tts').checked=!!c.tts;$('formTitle').textContent='Edit card';scrollTo(0,0);return}
  if(t.dataset.del){if(confirm('Delete this card?')){await api('/api/admin/card/delete',{id:t.dataset.del});load()}return}
+ if(t.dataset.preset){$('game_name').value=t.dataset.preset;$('gameGo').click();return}
+ if(t.id==='gameGo'){const r=await api('/api/admin/game',{game:$('game_name').value,regenerate:$('game_regen').checked});say(r.ok?(r.generated?'Generating cards…':'Switched to your existing set'):r.error,r.ok?'ok':'err');load();return}
  if(t.id==='clearCard'){clearForm();return}
  if(t.id==='saveCard'){const b={id:$('c_id').value,tts:$('c_tts').checked};for(const f of fields)b[f]=$('c_'+f).value;const r=await api('/api/admin/card',b);say(r.ok?'Card saved':r.error,r.ok?'ok':'err');if(r.ok)clearForm();load();return}
  if(t.id==='saveSettings'){const b={};document.querySelectorAll('[data-s]').forEach(el=>b[el.dataset.s]=el.type==='checkbox'?el.checked:el.value);const r=await api('/api/admin/settings',b);delete $('settingsForm').dataset.dirty;say(r.ok?'Settings saved':r.error,r.ok?'ok':'err');load();return}

@@ -28,6 +28,16 @@ Rarities and weighted pack odds, collections, per-viewer inventory, manual or au
 per-card cooldowns, per-viewer play cooldown, daily coins, gifting, community goal reward, text-to-speech,
 custom art / sound / video, coin grants, chat simulator, persistent storage.
 
+## Cards for the game you're playing
+Dashboard → **Game**: type the game (or tap GTA 6 / Battlefield 6 / Call of Duty). CardStream builds a themed set
+and switches your packs to it. Existing sets are just re-activated.
+- **Art** is original and game-inspired (mood, colours, setting). Official logos, characters and screenshots are never used.
+  - Default: illustrations drawn locally, free, no key.
+  - Optional AI images: `OPENAI_API_KEY=...` and pick *AI images* in Settings (costs money per image).
+- **Card text:** built-in ideas for the three games plus a generic set. With `ANTHROPIC_API_KEY=...` Claude writes a set for any game.
+- **Automatic:** with `TWITCH_CHANNEL`, `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET` and *Switch games automatically* ticked,
+  the set changes when your Twitch category changes.
+
 ## Limits (read this)
 - **No real payments.** Coins are earned in chat or granted by you. Selling packs would need a payment provider plus legal and tax work.
 - Twitch chat is read-only and anonymous; the bot cannot reply in chat. YouTube chat support is untested against a live stream.

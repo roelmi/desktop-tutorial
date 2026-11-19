@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 import { openStore } from "./store.js";
 import { startTwitch } from "./adapters/twitch.js";
 import { startYouTube } from "./adapters/youtube.js";
+import { watchTwitchGame } from "./adapters/twitchgame.js";
+import { fallbackCards, llmCards, svgArt, aiImage } from "./generator.js";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
@@ -26,6 +28,7 @@ const store = openStore(path.join(DATA_DIR, "db.json"), {
     packCost: 50, packSize: 3, guestCoins: 0, startCoins: 50,
     chatCoins: 2, chatCooldownSec: 60, dailyCoins: 25,
     playCooldownSec: 3, goalTarget: 20, goalReward: "rare",
+    currentGame: "", autoGame: false, artMode: "local", cardsPerGame: 10,
   },
   cards: JSON.parse(fs.readFileSync(path.join(dir, "cards.json"), "utf8")),
   users: {}, sessions: {}, queue: [], stats: { opened: 0, played: 0 },
@@ -137,11 +140,55 @@ function onChat({ platform, viewer, text }) {
   else if (cmd === "open") console.log(`[${platform}] ${viewer} open:`, JSON.stringify(openPack(u)).slice(0, 80));
 }
 
+// ---------- per-game card sets ----------
+const slug = (g) => g.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 20) || "game";
+let job = { status: "idle", game: "", done: 0, total: 0, errors: [], note: "" };
+
+function switchGame(game, { regenerate = false } = {}) {
+  game = clean(game, 40); if (!game) return { ok: false, error: "Enter a game name" };
+  if (job.status === "running") return { ok: false, error: `Still generating cards for ${job.game}` };
+  const existing = db.cards.find((c) => c.collection.toLowerCase() === game.toLowerCase());
+  if (existing && !regenerate) {
+    S.activeCollection = existing.collection; S.currentGame = existing.collection; save();
+    return { ok: true, generated: false, collection: existing.collection };
+  }
+  generateSet(game, regenerate).catch((e) => { job = { ...job, status: "error", note: e.message }; });
+  return { ok: true, generated: true };
+}
+
+async function generateSet(game, regenerate) {
+  const n = S.cardsPerGame, mode = S.artMode === "ai" && process.env.OPENAI_API_KEY ? "ai" : "local";
+  job = { status: "running", game, done: 0, total: n, errors: [], note: "Writing cards…" };
+  let raw, source = "built-in ideas";
+  if (process.env.ANTHROPIC_API_KEY) { try { raw = await llmCards(game, n, process.env.ANTHROPIC_API_KEY); source = "Claude"; } catch (e) { job.errors.push("Card writing fell back to built-in ideas: " + e.message); } }
+  raw ||= fallbackCards(game, n);
+  const collection = existing_collection_name(game), prefix = slug(game) + "-";
+  if (regenerate) db.cards = db.cards.filter((c) => c.collection !== collection);
+  const made = [];
+  for (let i = 0; i < raw.length; i++) {
+    job.note = `Drawing card ${i + 1} of ${raw.length} (${mode === "ai" ? "AI images" : "local art"}, text from ${source})`;
+    const card = cardFromBody({ ...raw[i], id: prefix + (i + 1), collection }, null);
+    card.id = prefix + (i + 1);
+    try {
+      if (mode === "ai") { const buf = await aiImage({ ...card, art: clean(raw[i].art, 160) }, game, process.env.OPENAI_API_KEY); fs.writeFileSync(path.join(UPLOADS, card.id + ".png"), buf); card.image = `/uploads/${card.id}.png`; }
+      else { fs.writeFileSync(path.join(UPLOADS, card.id + ".svg"), svgArt(card, game)); card.image = `/uploads/${card.id}.svg`; }
+    } catch (e) {
+      job.errors.push(`${card.name}: AI image failed (${e.message}); used local art`);
+      fs.writeFileSync(path.join(UPLOADS, card.id + ".svg"), svgArt(card, game)); card.image = `/uploads/${card.id}.svg`;
+    }
+    const at = db.cards.findIndex((c) => c.id === card.id); if (at >= 0) db.cards[at] = card; else db.cards.push(card);
+    made.push(card); job.done = i + 1;
+  }
+  S.activeCollection = collection; S.currentGame = collection; save();
+  job = { ...job, status: "done", note: `Created ${made.length} cards for ${collection} and switched packs to it.` };
+}
+const existing_collection_name = (game) => db.cards.find((c) => c.collection.toLowerCase() === game.toLowerCase())?.collection || game;
+
 // ---------- http ----------
 const adminTokens = new Set(); const loginTries = new Map();
 const types = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".json": "application/json",
   ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp",
-  ".mp3": "audio/mpeg", ".ogg": "audio/ogg", ".wav": "audio/wav", ".mp4": "video/mp4", ".webm": "video/webm" };
+  ".svg": "image/svg+xml", ".mp3": "audio/mpeg", ".ogg": "audio/ogg", ".wav": "audio/wav", ".mp4": "video/mp4", ".webm": "video/webm" };
 const UPLOAD_EXT = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp3", ".ogg", ".wav", ".mp4", ".webm"]);
 const json = (res, code, obj) => { res.writeHead(code, { "content-type": "application/json" }); res.end(JSON.stringify(obj)); };
 const readBody = (req, limit = 8192) => new Promise((resolve, reject) => {
@@ -185,7 +232,7 @@ async function api(req, res, url) {
   }
   if (p === "/api/me") { const x = sess(req); return x ? json(res, 200, publicUser(x.u, x.s)) : json(res, 401, { ok: false, error: "No session" }); }
   if (p === "/api/public") return json(res, 200, { streamerName: S.streamerName, cards: db.cards, packCost: S.packCost, packSize: S.packSize,
-    goal: { progress: db.goal.progress, target: S.goalTarget, reward: S.goalReward, completed: db.goal.completed }, collections: [...new Set(db.cards.map((c) => c.collection))], activeCollection: S.activeCollection });
+    goal: { progress: db.goal.progress, target: S.goalTarget, reward: S.goalReward, completed: db.goal.completed }, collections: [...new Set(db.cards.map((c) => c.collection))], activeCollection: S.activeCollection, currentGame: S.currentGame });
   if (p === "/api/open-pack" && method === "POST") { const x = sess(req); if (!x) return json(res, 401, { ok: false, error: "No session" }); const r = openPack(x.u); return json(res, r.ok ? 200 : 400, r); }
   if (p === "/api/play" && method === "POST") { const x = sess(req); if (!x) return json(res, 401, { ok: false, error: "No session" }); const b = await readBody(req); const r = playCard(x.u, String(b.cardId || "")); return json(res, r.ok ? 200 : 400, r); }
   if (p === "/api/daily" && method === "POST") {
@@ -212,7 +259,7 @@ async function api(req, res, url) {
   }
   if (p.startsWith("/api/admin/")) {
     if (!isAdmin(req)) return json(res, 401, { ok: false, error: "Not logged in" });
-    if (p === "/api/admin/state") return json(res, 200, { settings: S, cards: db.cards, stats: db.stats, goal: { progress: db.goal.progress, target: S.goalTarget, completed: db.goal.completed },
+    if (p === "/api/admin/state") return json(res, 200, { settings: S, cards: db.cards, stats: db.stats, job, providers: { llm: !!process.env.ANTHROPIC_API_KEY, ai: !!process.env.OPENAI_API_KEY, twitchGame: !!(process.env.TWITCH_CLIENT_ID && process.env.TWITCH_CLIENT_SECRET && process.env.TWITCH_CHANNEL) }, goal: { progress: db.goal.progress, target: S.goalTarget, completed: db.goal.completed },
       queue: db.queue.slice(-100).reverse().map((q) => ({ ...q, card: cardById(q.cardId) })),
       users: Object.values(db.users).sort((a, b) => b.coins - a.coins).slice(0, 100).map((u) => ({ name: u.name, platform: u.platform, coins: u.coins, cards: invCount(u), opened: u.stats.opened, played: u.stats.played })) });
     const qm = /^\/api\/admin\/queue\/(\w+)\/(accept|reject|replay)$/.exec(p);
@@ -237,6 +284,7 @@ async function api(req, res, url) {
       S.startCoins = num(b.startCoins, 0, 100000, S.startCoins); S.chatCoins = num(b.chatCoins, 0, 1000, S.chatCoins); S.chatCooldownSec = num(b.chatCooldownSec, 5, 3600, S.chatCooldownSec);
       S.dailyCoins = num(b.dailyCoins, 0, 100000, S.dailyCoins); S.playCooldownSec = num(b.playCooldownSec, 0, 600, S.playCooldownSec);
       S.goalTarget = num(b.goalTarget, 1, 100000, S.goalTarget); S.goalReward = RARITIES.includes(b.goalReward) ? b.goalReward : S.goalReward;
+      S.autoGame = !!b.autoGame; S.artMode = b.artMode === "ai" ? "ai" : "local"; S.cardsPerGame = num(b.cardsPerGame, 4, 16, S.cardsPerGame);
       save(); return json(res, 200, { ok: true });
     }
     if (p === "/api/admin/grant" && method === "POST") {
@@ -246,6 +294,10 @@ async function api(req, res, url) {
     }
     if (p === "/api/admin/test" && method === "POST") { const b = await readBody(req), c = cardById(b.cardId); if (!c) return json(res, 404, { ok: false }); broadcast({ type: "play", card: c, viewer: "Test", platform: "web" }); return json(res, 200, { ok: true }); }
     if (p === "/api/admin/sim-chat" && method === "POST") { const b = await readBody(req); onChat({ platform: ["twitch", "youtube"].includes(b.platform) ? b.platform : "twitch", viewer: b.viewer, text: String(b.text || "") }); return json(res, 200, { ok: true }); }
+    if (p === "/api/admin/game" && method === "POST") {
+      const b = await readBody(req), r = switchGame(clean(b.game, 40), { regenerate: !!b.regenerate });
+      return json(res, r.ok ? 200 : 400, r);
+    }
     if (p === "/api/admin/upload" && method === "POST") {
       const b = await readBody(req, 8 * 1024 * 1024), ext = path.extname(String(b.filename || "")).toLowerCase();
       if (!UPLOAD_EXT.has(ext)) return json(res, 400, { ok: false, error: "File type not allowed" });
@@ -272,10 +324,13 @@ http.createServer(async (req, res) => {
       full = path.join(dir, "public", f);
     }
     if (!fs.existsSync(full) || fs.statSync(full).isDirectory()) { res.writeHead(404); return res.end("Not found"); }
-    res.writeHead(200, { "content-type": types[path.extname(full)] || "application/octet-stream", "x-content-type-options": "nosniff" });
+    const h = { "content-type": types[path.extname(full)] || "application/octet-stream", "x-content-type-options": "nosniff" };
+    if (url.pathname.startsWith("/uploads/")) h["content-security-policy"] = "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox";
+    res.writeHead(200, h);
     fs.createReadStream(full).pipe(res);
   } catch (e) { if (!res.headersSent) json(res, 400, { ok: false, error: e.message === "too large" ? "Request too large" : "Bad request" }); }
 }).listen(PORT, () => console.log(`CardStream on http://localhost:${PORT}   viewers: /   dashboard: /dashboard   OBS overlay: /overlay`));
 
 startTwitch(process.env.TWITCH_CHANNEL, onChat);
 startYouTube(process.env.YT_API_KEY, process.env.YT_LIVE_CHAT_ID, onChat);
+watchTwitchGame(process.env.TWITCH_CHANNEL, process.env.TWITCH_CLIENT_ID, process.env.TWITCH_CLIENT_SECRET, (g) => { if (S.autoGame) { console.log("[game] now playing:", g); switchGame(g); } });

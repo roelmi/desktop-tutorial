@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CardStream</title><link rel="stylesheet" href="/style.css"></head><body>
-<div class="row" style="margin-bottom:8px"><div><h1>🃏 <span id="streamer">CardStream</span></h1><div class="sub">Open packs, collect cards, play them live on stream.</div></div><div class="coins">🪙 <span id="coins">0</span></div></div>
+<div class="row" style="margin-bottom:8px"><div><h1>🃏 <span id="streamer">CardStream</span></h1><div class="sub">Open packs, collect cards, play them live on stream.<span id="nowPlaying"></span></div></div><div class="coins">🪙 <span id="coins">0</span></div></div>
 <div id="link" class="box" hidden></div>
 <div id="msg"></div>
 <div class="box"><div class="row"><div>Community goal: <b id="goalText"></b></div></div><div class="bar" style="margin-top:8px"><i id="goalBar" style="width:0"></i></div>
@@ -17,7 +17,7 @@ async function api(path,body){const r=await fetch(path,{method:body===undefined?
 function cardHtml(c,extra){const art=c.image?`<img class="art" src="${esc(c.image)}" alt="">`:`<div class="e">${esc(c.emoji)}</div>`;
  return `<div class="card ${extra?.dim?'dim':''}" style="--c:var(--${esc(c.rarity)});${extra?.style||''}">${extra?.count?`<span class="count">×${extra.count}</span>`:''}${art}<div class="n">${esc(c.name)}</div><div class="r">${esc(c.rarity)}</div><div class="t">${esc(c.text)}</div>${extra?.btn||''}</div>`}
 function render(){
- $('coins').textContent=me.coins;$('streamer').textContent=pub.streamerName;document.title=pub.streamerName+' · CardStream';
+ $('coins').textContent=me.coins;$('streamer').textContent=pub.streamerName;$('nowPlaying').textContent=pub.currentGame?' · Now playing: '+pub.currentGame:'';document.title=pub.streamerName+' · CardStream';
  const g=pub.goal;$('goalText').textContent=`${g.progress}/${g.target} packs opened`;$('goalBar').style.width=Math.min(100,g.progress/g.target*100)+'%';
  $('goalSub').textContent=`When it fills, everyone who helped gets a ${g.reward} card. Completed ${g.completed} time(s).`;
  const l=$('link');l.hidden=me.linked;if(!me.linked)l.innerHTML=`<b>Link your chat account</b> to get coins and keep your cards. Type this in the stream chat:<br><code style="font-size:20px">!link ${esc(me.code)}</code><div class="sub">Guests start with no coins; chatting on the stream earns coins once linked.</div>`;
