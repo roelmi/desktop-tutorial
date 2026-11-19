@@ -1,0 +1,9 @@
+{
+  "name": "cardstream",
+  "version": "0.1.0",
+  "description": "Prototype: viewers play collectible cards that trigger live effects on a stream overlay (Twitch, YouTube, web).",
+  "type": "module",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=22" },
+  "license": "MIT"
+}

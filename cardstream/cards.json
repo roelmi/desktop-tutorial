@@ -1,0 +1,8 @@
+[
+  { "id": "confetti", "name": "Party Time",   "emoji": "🎉", "rarity": "common",    "cost": 10,  "effect": "confetti",  "text": "Party time!" },
+  { "id": "coins",    "name": "Coin Shower",  "emoji": "🪙", "rarity": "common",    "cost": 15,  "effect": "emojirain", "text": "Make it rain!" },
+  { "id": "hype",     "name": "Hype Train",   "emoji": "🚂", "rarity": "rare",      "cost": 30,  "effect": "banner",    "text": "HYPE TRAIN! Chat go crazy!" },
+  { "id": "dare",     "name": "Dare",         "emoji": "😈", "rarity": "rare",      "cost": 40,  "effect": "challenge", "text": "Streamer must do 10 pushups!", "seconds": 30 },
+  { "id": "lowhp",    "name": "Plot Twist",   "emoji": "💀", "rarity": "epic",      "cost": 60,  "effect": "challenge", "text": "Play with one hand for 60 seconds", "seconds": 60 },
+  { "id": "legend",   "name": "Legendary Wanted", "emoji": "⭐", "rarity": "legendary", "cost": 100, "effect": "wanted",  "text": "Max wanted level! Run!", "seconds": 45 }
+]

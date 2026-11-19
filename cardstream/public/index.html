@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CardStream</title>
+<style>
+:root{--bg:#0e1118;--panel:#171c27;--ink:#eef1f7;--muted:#8d97ab;--accent:#7c5cff;--common:#8d97ab;--rare:#3fa7ff;--epic:#b66bff;--legendary:#ffb53f}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px system-ui,sans-serif;padding:16px;max-width:760px;margin-inline:auto}
+h1{font-size:22px;margin:0 0 4px}p.sub{color:var(--muted);margin:0 0 16px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+input,select{background:var(--panel);color:var(--ink);border:1px solid #2a3142;border-radius:10px;padding:10px 12px;font:inherit;flex:1;min-width:120px}
+.coins{background:var(--panel);border-radius:10px;padding:10px 14px;font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.card{background:var(--panel);border:2px solid var(--c);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:6px;text-align:center}
+.card .e{font-size:40px}.card .n{font-weight:700}.card .r{font-size:12px;text-transform:uppercase;color:var(--c);letter-spacing:.08em}
+.card .t{color:var(--muted);font-size:13px;flex:1}
+button{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:10px;font:inherit;font-weight:600;cursor:pointer}
+button:disabled{opacity:.4}#msg{min-height:24px;margin:12px 0;color:var(--muted)}#msg.err{color:#ff6b6b}#msg.ok{color:#5ee3a1}
+a{color:var(--rare)}
+</style></head><body>
+<h1>🃏 CardStream</h1>
+<p class="sub">Spend coins to play a card. It shows up live on the stream. Prototype: virtual coins only, no real money.</p>
+<div class="row">
+  <input id="viewer" placeholder="Your name" maxlength="40" autocomplete="off">
+  <select id="platform"><option value="web">Web</option><option value="twitch">Twitch</option><option value="youtube">YouTube</option></select>
+  <div class="coins">🪙 <span id="coins">100</span></div>
+</div>
+<div id="msg"></div>
+<div class="grid" id="grid"></div>
+<p class="sub" style="margin-top:20px">Streamer: add <code>/overlay</code> as an OBS Browser Source (1920×1080). In chat, viewers can type <code>!play cardid</code>.</p>
+<script>
+const $=id=>document.getElementById(id);let cards=[];
+const say=(t,c)=>{$('msg').textContent=t;$('msg').className=c||''};
+async function wallet(){const v=$('viewer').value.trim();if(!v)return;const r=await(await fetch(`/api/wallet?viewer=${encodeURIComponent(v)}&platform=${$('platform').value}`)).json();$('coins').textContent=r.coins}
+async function play(id){
+  const viewer=$('viewer').value.trim();if(!viewer)return say('Enter your name first','err');
+  const r=await fetch('/api/play',{method:'POST',body:JSON.stringify({viewer,platform:$('platform').value,cardId:id})});
+  const j=await r.json();if(j.ok){$('coins').textContent=j.coins;say('Card played! Look at the stream.','ok')}else say(j.error,'err')}
+(async()=>{cards=await(await fetch('/api/cards')).json();
+ $('grid').innerHTML=cards.map(c=>`<div class="card" style="--c:var(--${c.rarity})"><div class="e">${c.emoji}</div><div class="n">${c.name}</div><div class="r">${c.rarity}</div><div class="t">${c.text}</div><button data-id="${c.id}">Play · 🪙${c.cost}</button></div>`).join('');
+ $('grid').onclick=e=>{const b=e.target.closest('button');if(b)play(b.dataset.id)};
+ $('viewer').onchange=wallet;$('platform').onchange=wallet;
+ try{$('viewer').value=localStorage.getItem('cs_name')||''}catch{};$('viewer').oninput=()=>{try{localStorage.setItem('cs_name',$('viewer').value)}catch{}};wallet()})();
+</script></body></html>
