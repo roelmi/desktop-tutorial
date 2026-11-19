@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CardStream Dashboard</title><link rel="stylesheet" href="/style.css"></head><body>
+<h1>🎛️ Streamer dashboard</h1>
+<div id="login" class="box" style="margin-top:14px"><label>Dashboard password</label><div class="row"><input id="pw" type="password" autocomplete="current-password"><button id="go">Log in</button></div></div>
+<div id="app" hidden>
+<div id="msg"></div>
+<div class="tabs" id="tabs"><button data-t="queue" class="on">Queue</button><button data-t="cards">Cards</button><button data-t="settings">Settings</button><button data-t="viewers">Viewers</button><button data-t="tools">Tools</button></div>
+
+<div id="queue"></div>
+
+<div id="cards" hidden>
+ <div class="box"><h2 style="margin-top:0" id="formTitle">Add a card</h2>
+  <input type="hidden" id="c_id">
+  <div class="row"><div><label>Name</label><input id="c_name" maxlength="40"></div><div><label>Emoji</label><input id="c_emoji" maxlength="8" placeholder="🃏"></div><div><label>Collection</label><input id="c_collection" maxlength="40" placeholder="Classics"></div></div>
+  <label>What it makes you do / text shown on stream</label><input id="c_text" maxlength="140">
+  <div class="row"><div><label>Rarity</label><select id="c_rarity"><option>common</option><option>rare</option><option>epic</option><option>legendary</option></select></div>
+   <div><label>Effect</label><select id="c_effect"><option>alert</option><option>confetti</option><option>emojirain</option><option>banner</option><option>challenge</option><option>wanted</option></select></div>
+   <div><label>Seconds on screen</label><input id="c_seconds" type="number" min="2" max="300" value="6"></div>
+   <div><label>Cooldown (s, all viewers)</label><input id="c_cooldownSec" type="number" min="0" value="0"></div></div>
+  <div class="row"><div><label>Image (URL or upload)</label><input id="c_image"><input type="file" data-for="c_image" accept="image/*"></div>
+   <div><label>Sound</label><input id="c_sound"><input type="file" data-for="c_sound" accept="audio/*"></div>
+   <div><label>Video</label><input id="c_video"><input type="file" data-for="c_video" accept="video/mp4,video/webm"></div></div>
+  <label><input type="checkbox" id="c_tts" style="width:auto"> Read the text aloud (text-to-speech)</label>
+  <div class="row" style="margin-top:10px"><button id="saveCard">Save card</button><button class="ghost" id="clearCard">New card</button></div></div>
+ <div class="grid" id="cardList"></div>
+</div>
+
+<div id="settings" hidden><div class="box" id="settingsForm"></div></div>
+
+<div id="viewers" hidden>
+ <div class="box"><h2 style="margin-top:0">Give coins or a card</h2><div class="row"><input id="g_name" placeholder="Viewer name"><input id="g_coins" type="number" placeholder="Coins (negative removes)"><select id="g_card"></select><button id="grant">Give</button></div></div>
+ <div class="box"><table id="userTable"></table></div>
+</div>
+
+<div id="tools" hidden>
+ <div class="box"><h2 style="margin-top:0">OBS overlay</h2><p class="sub">In OBS add a <b>Browser Source</b>, URL below, size 1920×1080.</p><code id="ovUrl"></code> <a id="ovPrev" target="_blank">Preview</a></div>
+ <div class="box"><h2 style="margin-top:0">Test a card on the overlay</h2><div class="row"><select id="t_card"></select><button id="test">Send to overlay</button></div></div>
+ <div class="box"><h2 style="margin-top:0">Simulate chat</h2><p class="sub">Try the chat commands without a live stream.</p><div class="row"><input id="s_viewer" placeholder="Viewer name" value="TestViewer"><input id="s_text" placeholder="!play confetti  /  !open  /  !link CODE"><button id="sim">Send</button></div></div>
+</div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let tok='',state=null;try{tok=sessionStorage.getItem('cs_admin')||''}catch{}
+const say=(t,c)=>{$('msg').textContent=t;$('msg').className=c||''};
+async function api(p,b){const r=await fetch(p,{method:b===undefined?'GET':'POST',headers:{'x-admin':tok,'content-type':'application/json'},body:b===undefined?undefined:JSON.stringify(b)});return r.json()}
+async function login(){const r=await api('/api/admin/login',{password:$('pw').value});if(!r.ok)return alert(r.error);tok=r.token;try{sessionStorage.setItem('cs_admin',tok)}catch{};start()}
+$('go').onclick=login;$('pw').onkeydown=e=>{if(e.key==='Enter')login()};
+const fields=['name','emoji','collection','text','rarity','effect','seconds','cooldownSec','image','sound','video'];
+async function load(){const s=await api('/api/admin/state');if(s.ok===false){tok='';$('app').hidden=true;$('login').hidden=false;return}state=s;draw()}
+function draw(){
+ const q=state.queue,pend=q.filter(x=>x.status==='pending');
+ $('queue').innerHTML=`<div class="row"><div><b>${pend.length}</b> waiting · <span class="pill">${state.settings.autoAccept?'auto-accept ON':'manual accept'}</span> · ${state.stats.played} played · ${state.stats.opened} packs</div>${pend.length?'<button class="good" id="accAll">Accept all</button>':''}</div>`+
+  `<div class="box" style="margin-top:10px"><table>${q.length?q.map(x=>`<tr><td>${esc(x.card?.emoji||'')} <b>${esc(x.card?.name||x.cardId)}</b><div class="sub">${esc(x.viewer)} · ${esc(x.platform)} · ${new Date(x.at).toLocaleTimeString()}</div></td><td><span class="pill">${esc(x.status)}</span></td><td style="text-align:right">${x.status==='pending'?`<button class="good" data-q="accept" data-id="${x.id}">Accept</button> <button class="bad" data-q="reject" data-id="${x.id}">Reject</button>`:x.status==='accepted'?`<button class="ghost" data-q="replay" data-id="${x.id}">Replay</button>`:''}</td></tr>`).join(''):'<tr><td class="sub">No cards played yet.</td></tr>'}</table></div>`;
+ $('cardList').innerHTML=state.cards.map(c=>`<div class="card" style="--c:var(--${esc(c.rarity)})">${c.image?`<img class="art" src="${esc(c.image)}" alt="">`:`<div class="e">${esc(c.emoji)}</div>`}<div class="n">${esc(c.name)}</div><div class="r">${esc(c.rarity)} · ${esc(c.collection)}</div><div class="t">${esc(c.text)}</div><div class="row"><button class="ghost" data-edit="${esc(c.id)}">Edit</button><button class="bad" data-del="${esc(c.id)}">×</button></div></div>`).join('');
+ const opts=state.cards.map(c=>`<option value="${esc(c.id)}">${esc(c.emoji)} ${esc(c.name)}</option>`).join('');
+ for(const id of ['g_card','t_card']){const cur=$(id).value;$(id).innerHTML=(id==='g_card'?'<option value="">(no card)</option>':'')+opts;$(id).value=cur}
+ $('userTable').innerHTML='<tr><th>Viewer</th><th>Coins</th><th>Cards</th><th>Packs</th><th>Played</th></tr>'+state.users.map(u=>`<tr><td>${esc(u.name)} <span class="pill">${esc(u.platform)}</span></td><td>${u.coins}</td><td>${u.cards}</td><td>${u.opened}</td><td>${u.played}</td></tr>`).join('');
+ $('ovUrl').textContent=location.origin+'/overlay';$('ovPrev').href='/overlay?preview';
+ if(!$('settingsForm').dataset.ready||document.activeElement.closest?.('#settingsForm')==null&&!$('settingsForm').dataset.dirty)settingsDraw();
+}
+function settingsDraw(){const s=state.settings,n=(k,l,h)=>`<div><label>${l}</label><input data-s="${k}" type="number" value="${s[k]}">${h?`<div class="sub">${h}</div>`:''}</div>`;
+ const cols=[...new Set(state.cards.map(c=>c.collection))];
+ $('settingsForm').dataset.ready=1;$('settingsForm').innerHTML=`<div class="row"><div><label>Stream / channel name</label><input data-s="streamerName" value="${esc(s.streamerName)}"></div>
+ <div><label>Packs draw from</label><select data-s="activeCollection"><option value="">All collections</option>${cols.map(c=>`<option ${s.activeCollection===c?'selected':''}>${esc(c)}</option>`).join('')}</select></div></div>
+ <label><input type="checkbox" data-s="autoAccept" style="width:auto" ${s.autoAccept?'checked':''}> Auto-accept played cards (otherwise you approve each one in the queue)</label>
+ <div class="row">${n('packCost','Pack cost (coins)')}${n('packSize','Cards per pack')}${n('startCoins','Coins for a new chatter')}${n('guestCoins','Coins for web guests')}</div>
+ <div class="row">${n('chatCoins','Coins per chat message')}${n('chatCooldownSec','Chat reward cooldown (s)')}${n('dailyCoins','Daily claim coins')}${n('playCooldownSec','Per-viewer play cooldown (s)')}</div>
+ <div class="row">${n('goalTarget','Community goal (packs)')}<div><label>Goal reward rarity</label><select data-s="goalReward">${['common','rare','epic','legendary'].map(r=>`<option ${s.goalReward===r?'selected':''}>${r}</option>`).join('')}</select></div></div>
+ <div class="row" style="margin-top:10px"><button id="saveSettings">Save settings</button></div>`}
+$('settingsForm').addEventListener('input',()=>{$('settingsForm').dataset.dirty=1});
+document.addEventListener('click',async e=>{
+ const t=e.target;
+ if(t.closest('#tabs button')){const b=t.closest('#tabs button');document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));for(const k of['queue','cards','settings','viewers','tools'])$(k).hidden=k!==b.dataset.t;return}
+ if(t.dataset.q){const r=await api(`/api/admin/queue/${t.dataset.id}/${t.dataset.q}`,{});if(!r.ok)say(r.error,'err');load();return}
+ if(t.id==='accAll'){await api('/api/admin/accept-all',{});load();return}
+ if(t.dataset.edit){const c=state.cards.find(x=>x.id===t.dataset.edit);$('c_id').value=c.id;for(const f of fields)$('c_'+f).value=c[f]??'';$('c_tts').checked=!!c.tts;$('formTitle').textContent='Edit card';scrollTo(0,0);return}
+ if(t.dataset.del){if(confirm('Delete this card?')){await api('/api/admin/card/delete',{id:t.dataset.del});load()}return}
+ if(t.id==='clearCard'){clearForm();return}
+ if(t.id==='saveCard'){const b={id:$('c_id').value,tts:$('c_tts').checked};for(const f of fields)b[f]=$('c_'+f).value;const r=await api('/api/admin/card',b);say(r.ok?'Card saved':r.error,r.ok?'ok':'err');if(r.ok)clearForm();load();return}
+ if(t.id==='saveSettings'){const b={};document.querySelectorAll('[data-s]').forEach(el=>b[el.dataset.s]=el.type==='checkbox'?el.checked:el.value);const r=await api('/api/admin/settings',b);delete $('settingsForm').dataset.dirty;say(r.ok?'Settings saved':r.error,r.ok?'ok':'err');load();return}
+ if(t.id==='grant'){const r=await api('/api/admin/grant',{name:$('g_name').value,coins:$('g_coins').value,cardId:$('g_card').value});say(r.ok?'Done':r.error,r.ok?'ok':'err');load();return}
+ if(t.id==='test'){await api('/api/admin/test',{cardId:$('t_card').value});return}
+ if(t.id==='sim'){await api('/api/admin/sim-chat',{viewer:$('s_viewer').value,text:$('s_text').value});load();return}
+});
+function clearForm(){$('c_id').value='';for(const f of fields)$('c_'+f).value='';$('c_seconds').value=6;$('c_cooldownSec').value=0;$('c_tts').checked=false;$('formTitle').textContent='Add a card'}
+document.addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f||!e.target.dataset.for)return;
+ if(f.size>5*1024*1024)return say('File must be under 5 MB','err');
+ const data=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result.split(',')[1]);fr.readAsDataURL(f)});
+ const r=await api('/api/admin/upload',{filename:f.name,data});if(r.ok){$('c_'+e.target.dataset.for.slice(2)).value=r.url;say('Uploaded','ok')}else say(r.error,'err')});
+function start(){$('login').hidden=true;$('app').hidden=false;load();setInterval(load,2500)}
+if(tok)start();
+</script></body></html>

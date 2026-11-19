@@ -2,16 +2,16 @@
 <html><head><meta charset="utf-8"><title>CardStream Overlay</title>
 <style>
 html,body{margin:0;height:100%;overflow:hidden;background:transparent;font-family:system-ui,sans-serif}
-body.preview{background:#222 url() }
 #stack{position:fixed;top:24px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:12px;align-items:center;width:min(90vw,760px)}
 .pop{background:rgba(15,18,28,.92);color:#fff;border:3px solid var(--c);border-radius:18px;padding:16px 24px;display:flex;gap:16px;align-items:center;box-shadow:0 8px 30px #0008;animation:in .35s ease-out;width:100%}
-.pop .e{font-size:48px}.pop .who{font-size:14px;color:#aab3c7}.pop .n{font-size:26px;font-weight:800}.pop .t{font-size:20px}
+.pop .e{font-size:48px}.pop img{width:72px;height:72px;object-fit:cover;border-radius:12px}.pop .who{font-size:14px;color:#aab3c7}.pop .n{font-size:26px;font-weight:800}.pop .t{font-size:20px}
 .pop .bar{height:6px;background:var(--c);border-radius:3px;margin-top:8px;animation:drain var(--s) linear forwards}
-.wanted{--c:#ff4747}
+.pop.wanted{--c:#ff4747}
 @keyframes in{from{transform:translateY(-30px) scale(.9);opacity:0}to{transform:none;opacity:1}}
 @keyframes drain{from{width:100%}to{width:0}}
 .fall{position:fixed;top:-60px;font-size:36px;animation:fall linear forwards;pointer-events:none}
 @keyframes fall{to{transform:translateY(115vh) rotate(540deg)}}
+#vid{position:fixed;right:24px;bottom:24px;max-width:40vw;max-height:40vh;border-radius:14px}
 </style></head><body>
 <div id="stack"></div>
 <script>
@@ -19,17 +19,24 @@ const stack=document.getElementById('stack');
 const col={common:'#8d97ab',rare:'#3fa7ff',epic:'#b66bff',legendary:'#ffb53f'};
 function rain(list,n){for(let i=0;i<n;i++){const s=document.createElement('div');s.className='fall';s.textContent=list[i%list.length];
  s.style.left=Math.random()*100+'vw';s.style.animationDuration=(2+Math.random()*2.5)+'s';s.style.animationDelay=Math.random()*0.8+'s';
- document.body.appendChild(s);setTimeout(()=>s.remove(),6000)}}
-function pop(ev,secs){const c=ev.card,d=document.createElement('div');d.className='pop';d.style.setProperty('--c',col[c.rarity]);d.style.setProperty('--s',secs+'s');
- d.innerHTML=`<div class="e"></div><div><div class="who"></div><div class="n"></div><div class="t"></div><div class="bar"></div></div>`;
- d.querySelector('.e').textContent=c.emoji;d.querySelector('.who').textContent=`${ev.viewer} (${ev.platform}) played`;
- d.querySelector('.n').textContent=c.name;d.querySelector('.t').textContent=c.text;stack.appendChild(d);setTimeout(()=>d.remove(),secs*1000)}
-function handle(ev){const c=ev.card;
- if(c.effect==='confetti'){rain(['🎉','🎊','✨'],40);pop(ev,5)}
- else if(c.effect==='emojirain'){rain(['🪙'],35);pop(ev,5)}
- else if(c.effect==='banner'){rain(['🚂','🔥'],20);pop(ev,6)}
- else if(c.effect==='challenge'){pop(ev,c.seconds||30)}
- else if(c.effect==='wanted'){const d=pop(ev,c.seconds||45);stack.lastChild?.classList.add('wanted');rain(['⭐'],25)}}
-const es=new EventSource('/events');es.onmessage=e=>handle(JSON.parse(e.data));
+ document.body.appendChild(s);setTimeout(()=>s.remove(),6500)}}
+function pop(ev,secs,extraClass){const c=ev.card,d=document.createElement('div');d.className='pop '+(extraClass||'');d.style.setProperty('--c',col[c.rarity]||'#fff');d.style.setProperty('--s',secs+'s');
+ const left=document.createElement('div');if(c.image){const im=document.createElement('img');im.src=c.image;left.appendChild(im)}else{left.className='e';left.textContent=c.emoji}
+ const r=document.createElement('div');
+ for(const [cl,tx] of [['who',`${ev.viewer} (${ev.platform}) played`],['n',c.name],['t',c.text]]){const x=document.createElement('div');x.className=cl;x.textContent=tx;r.appendChild(x)}
+ const b=document.createElement('div');b.className='bar';r.appendChild(b);d.append(left,r);stack.appendChild(d);setTimeout(()=>d.remove(),secs*1000)}
+function media(c){
+ if(c.sound){try{new Audio(c.sound).play().catch(()=>{})}catch{}}
+ if(c.video){const v=document.createElement('video');v.id='vid';v.src=c.video;v.autoplay=true;v.onended=()=>v.remove();v.onerror=()=>v.remove();document.body.appendChild(v);setTimeout(()=>v.remove(),(c.seconds||10)*1000)}
+ if(c.tts&&'speechSynthesis' in window){try{speechSynthesis.speak(new SpeechSynthesisUtterance(c.text))}catch{}}}
+function handle(ev){
+ if(ev.type==='goal'){const r=ev.reward||{emoji:'🎁',name:'a card',rarity:'rare'};pop({card:{emoji:'🎁',name:'Community goal reached!',text:`Everyone who helped gets ${r.name}`,rarity:'legendary',seconds:8},viewer:'Chat',platform:'all'},8);rain(['🎁','🎉'],40);return}
+ if(ev.type!=='play')return;const c=ev.card,s=c.seconds||6;media(c);
+ if(c.effect==='confetti'){rain(['🎉','🎊','✨'],40);pop(ev,s)}
+ else if(c.effect==='emojirain'){rain(['🪙'],35);pop(ev,s)}
+ else if(c.effect==='banner'){rain(['🚂','🔥'],20);pop(ev,s)}
+ else if(c.effect==='wanted'){rain(['⭐'],25);pop(ev,s,'wanted')}
+ else pop(ev,s)}
+let es;function connect(){es=new EventSource('/events');es.onmessage=e=>{try{handle(JSON.parse(e.data))}catch{}};es.onerror=()=>{es.close();setTimeout(connect,2000)}}connect();
 if(location.search.includes('preview'))document.body.style.background='#1b2030';
 </script></body></html>

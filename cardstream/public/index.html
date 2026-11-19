@@ -1,42 +1,44 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>CardStream</title>
-<style>
-:root{--bg:#0e1118;--panel:#171c27;--ink:#eef1f7;--muted:#8d97ab;--accent:#7c5cff;--common:#8d97ab;--rare:#3fa7ff;--epic:#b66bff;--legendary:#ffb53f}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px system-ui,sans-serif;padding:16px;max-width:760px;margin-inline:auto}
-h1{font-size:22px;margin:0 0 4px}p.sub{color:var(--muted);margin:0 0 16px}
-.row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-input,select{background:var(--panel);color:var(--ink);border:1px solid #2a3142;border-radius:10px;padding:10px 12px;font:inherit;flex:1;min-width:120px}
-.coins{background:var(--panel);border-radius:10px;padding:10px 14px;font-weight:600}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
-.card{background:var(--panel);border:2px solid var(--c);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:6px;text-align:center}
-.card .e{font-size:40px}.card .n{font-weight:700}.card .r{font-size:12px;text-transform:uppercase;color:var(--c);letter-spacing:.08em}
-.card .t{color:var(--muted);font-size:13px;flex:1}
-button{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:10px;font:inherit;font-weight:600;cursor:pointer}
-button:disabled{opacity:.4}#msg{min-height:24px;margin:12px 0;color:var(--muted)}#msg.err{color:#ff6b6b}#msg.ok{color:#5ee3a1}
-a{color:var(--rare)}
-</style></head><body>
-<h1>🃏 CardStream</h1>
-<p class="sub">Spend coins to play a card. It shows up live on the stream. Prototype: virtual coins only, no real money.</p>
-<div class="row">
-  <input id="viewer" placeholder="Your name" maxlength="40" autocomplete="off">
-  <select id="platform"><option value="web">Web</option><option value="twitch">Twitch</option><option value="youtube">YouTube</option></select>
-  <div class="coins">🪙 <span id="coins">100</span></div>
-</div>
+<title>CardStream</title><link rel="stylesheet" href="/style.css"></head><body>
+<div class="row" style="margin-bottom:8px"><div><h1>🃏 <span id="streamer">CardStream</span></h1><div class="sub">Open packs, collect cards, play them live on stream.</div></div><div class="coins">🪙 <span id="coins">0</span></div></div>
+<div id="link" class="box" hidden></div>
 <div id="msg"></div>
-<div class="grid" id="grid"></div>
-<p class="sub" style="margin-top:20px">Streamer: add <code>/overlay</code> as an OBS Browser Source (1920×1080). In chat, viewers can type <code>!play cardid</code>.</p>
+<div class="box"><div class="row"><div>Community goal: <b id="goalText"></b></div></div><div class="bar" style="margin-top:8px"><i id="goalBar" style="width:0"></i></div>
+<div class="sub" id="goalSub"></div></div>
+<div class="tabs" id="tabs"><button data-t="shop" class="on">Shop</button><button data-t="inv">My cards</button><button data-t="all">All cards</button></div>
+<div id="shop"></div><div id="inv" hidden></div><div id="all" hidden></div>
 <script>
-const $=id=>document.getElementById(id);let cards=[];
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let token='',me=null,pub=null;
 const say=(t,c)=>{$('msg').textContent=t;$('msg').className=c||''};
-async function wallet(){const v=$('viewer').value.trim();if(!v)return;const r=await(await fetch(`/api/wallet?viewer=${encodeURIComponent(v)}&platform=${$('platform').value}`)).json();$('coins').textContent=r.coins}
-async function play(id){
-  const viewer=$('viewer').value.trim();if(!viewer)return say('Enter your name first','err');
-  const r=await fetch('/api/play',{method:'POST',body:JSON.stringify({viewer,platform:$('platform').value,cardId:id})});
-  const j=await r.json();if(j.ok){$('coins').textContent=j.coins;say('Card played! Look at the stream.','ok')}else say(j.error,'err')}
-(async()=>{cards=await(await fetch('/api/cards')).json();
- $('grid').innerHTML=cards.map(c=>`<div class="card" style="--c:var(--${c.rarity})"><div class="e">${c.emoji}</div><div class="n">${c.name}</div><div class="r">${c.rarity}</div><div class="t">${c.text}</div><button data-id="${c.id}">Play · 🪙${c.cost}</button></div>`).join('');
- $('grid').onclick=e=>{const b=e.target.closest('button');if(b)play(b.dataset.id)};
- $('viewer').onchange=wallet;$('platform').onchange=wallet;
- try{$('viewer').value=localStorage.getItem('cs_name')||''}catch{};$('viewer').oninput=()=>{try{localStorage.setItem('cs_name',$('viewer').value)}catch{}};wallet()})();
+async function api(path,body){const r=await fetch(path,{method:body===undefined?'GET':'POST',headers:{'x-token':token,'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});return r.json()}
+function cardHtml(c,extra){const art=c.image?`<img class="art" src="${esc(c.image)}" alt="">`:`<div class="e">${esc(c.emoji)}</div>`;
+ return `<div class="card ${extra?.dim?'dim':''}" style="--c:var(--${esc(c.rarity)});${extra?.style||''}">${extra?.count?`<span class="count">×${extra.count}</span>`:''}${art}<div class="n">${esc(c.name)}</div><div class="r">${esc(c.rarity)}</div><div class="t">${esc(c.text)}</div>${extra?.btn||''}</div>`}
+function render(){
+ $('coins').textContent=me.coins;$('streamer').textContent=pub.streamerName;document.title=pub.streamerName+' · CardStream';
+ const g=pub.goal;$('goalText').textContent=`${g.progress}/${g.target} packs opened`;$('goalBar').style.width=Math.min(100,g.progress/g.target*100)+'%';
+ $('goalSub').textContent=`When it fills, everyone who helped gets a ${g.reward} card. Completed ${g.completed} time(s).`;
+ const l=$('link');l.hidden=me.linked;if(!me.linked)l.innerHTML=`<b>Link your chat account</b> to get coins and keep your cards. Type this in the stream chat:<br><code style="font-size:20px">!link ${esc(me.code)}</code><div class="sub">Guests start with no coins; chatting on the stream earns coins once linked.</div>`;
+ $('shop').innerHTML=`<div class="box"><h2 style="margin-top:0">Card pack</h2><div class="sub">${pub.packSize} random cards${pub.activeCollection?` from “${esc(pub.activeCollection)}”`:''}</div>
+  <div class="row" style="margin-top:10px"><button id="open" ${me.coins<pub.packCost?'disabled':''}>Open pack · 🪙${pub.packCost}</button><button class="ghost" id="daily" ${me.dailyReady&&me.linked?'':'disabled'}>${me.linked?(me.dailyReady?'Claim daily coins':'Daily claimed'):'Link to claim daily'}</button></div>
+  <div class="sub" style="margin-top:8px">Earn coins by chatting on stream. Odds: common 60% · rare 28% · epic 9% · legendary 3%.</div></div>`;
+ $('open').onclick=openPack;$('daily').onclick=daily;
+ const owned=pub.cards.filter(c=>me.inventory[c.id]);
+ $('inv').innerHTML=owned.length?`<div class="grid">${owned.map(c=>cardHtml(c,{count:me.inventory[c.id],btn:`<button data-play="${esc(c.id)}">Play</button><button class="ghost" data-gift="${esc(c.id)}">Gift</button>`})).join('')}</div>`:'<p class="sub">No cards yet. Open a pack!</p>';
+ $('all').innerHTML=`<div class="grid">${pub.cards.map(c=>cardHtml(c,{dim:!me.inventory[c.id],count:me.inventory[c.id]})).join('')}</div>`;
+}
+async function refresh(){pub=await api('/api/public');me=await api('/api/me');render()}
+async function openPack(){const r=await api('/api/open-pack',{});if(!r.ok)return say(r.error,'err');say('');
+ const d=document.createElement('div');d.className='reveal';d.innerHTML=`<div><div class="cards">${r.cards.map((c,i)=>cardHtml(c,{style:'--i:'+i})).join('')}</div><p style="text-align:center"><button id="ok">Nice!</button></p></div>`;
+ document.body.appendChild(d);d.querySelector('#ok').onclick=()=>d.remove();await refresh()}
+async function daily(){const r=await api('/api/daily',{});say(r.ok?'Daily coins claimed!':r.error,r.ok?'ok':'err');refresh()}
+document.addEventListener('click',async e=>{
+ const p=e.target.closest('[data-play]');if(p){const r=await api('/api/play',{cardId:p.dataset.play});say(r.ok?(r.queued?'Card sent! Waiting for the streamer to accept.':'Card played! Look at the stream.'):r.error,r.ok?'ok':'err');refresh()}
+ const g=e.target.closest('[data-gift]');if(g){const to=prompt('Gift this card to which viewer name?');if(to){const r=await api('/api/gift',{to,cardId:g.dataset.gift});say(r.ok?'Gift sent!':r.error,r.ok?'ok':'err');refresh()}}
+ const t=e.target.closest('#tabs button');if(t){document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b===t));for(const k of['shop','inv','all'])$(k).hidden=k!==t.dataset.t}});
+(async()=>{try{token=localStorage.getItem('cs_token')||''}catch{}
+ const r=await api('/api/session',{});token=r.token;try{localStorage.setItem('cs_token',token)}catch{}
+ await refresh();setInterval(refresh,10000)})();
 </script></body></html>
